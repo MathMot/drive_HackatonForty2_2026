@@ -575,6 +575,7 @@ class ItemSerializer(ListItemSerializer):
             "deleted_at",
             "hard_delete_at",
             "is_wopi_supported",
+            "signature",
         ]
         read_only_fields = [
             "id",
