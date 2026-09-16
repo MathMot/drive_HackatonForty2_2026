@@ -8,6 +8,8 @@ import re
 import uuid
 from io import BytesIO
 from urllib.parse import quote, unquote, urlparse
+from django.core.files.storage import default_storage
+
 
 from django.conf import settings
 from django.contrib.postgres.search import TrigramSimilarity
@@ -24,6 +26,16 @@ from django.utils.decorators import method_decorator
 from django.utils.functional import cached_property
 from django.utils.text import capfirst, slugify
 from django.utils.translation import gettext_lazy as _
+
+import hashlib                                                                                                                          
+from django.utils import timezone                                                                                                         
+from rest_framework import status                                                                                                         
+from rest_framework.decorators import action                                                                                              
+from rest_framework.response import Response                                                                                              
+from rest_framework.exceptions import ValidationError, PermissionDenied                                                                   
+                                                                                                                                          
+from core import models                                                                                                                   
+from core.api import serializers 
 
 import rest_framework as drf
 from botocore.exceptions import ClientError
@@ -1940,6 +1952,71 @@ class ItemViewSet(
 
         serializer = self.get_serializer(duplicated_item)
         return drf.response.Response(serializer.data, status=drf.status.HTTP_201_CREATED)
+
+
+
+
+#items/${itemId}/request-sign/
+    @action(detail=True, methods=["post"], url_path="request-sign")
+    def request_sign(self, request, *args, **kwargs):
+
+
+#item = l'item en question
+#signers = array qui contient tous les mails
+# ex = ['aze.aze@aze.net', 'mathis.minet@mathis.net']
+
+#avec tous ces mails, tu récupères leurs users, et tu peux créer pour chaque une classe Signataire
+#Link chaque class Signataire
+#Envoie de mail pour chaque user avec descriptif de mdr tu dois signer ça
+    #models.User.objects.get(id=9).email_user()
+        item = self.get_object()
+        print("Sent les request")
+        print(f"for the file : {item.filename}")
+        signers = request.data.get("signers",[])
+        print(f"signataires : {signers}")
+
+
+
+
+
+        serializer = serializers.SelfSignSerializer(data=request.data)                                                                    
+        serializer.is_valid(raise_exception=True)                                                                                         
+        validated_data = serializer.validated_data
+        response_serializer = serializers.ItemSerializer(
+            item, context=self.get_serializer_context()
+        )
+        return Response(response_serializer.data, status=status.HTTP_200_OK)
+    @action(detail=True, methods=["post"], url_path="self-sign")                                                                          
+    def self_sign(self, request, *args, **kwargs):                                                                                        
+        """                                                                                                                               
+        Reception and processing of self-signing requests.                                                                                
+        Endpoint: POST /api/v1.0/items/<id>/self-sign/                                                                                    
+        """                                                                                                                               
+        # 1. Fetch item and verify permissions                                                                                            
+        item = self.get_object()                                                                                                          
+                                                                                                                                          
+        # Check that the file is actually a PDF                                                                                           
+        is_pdf = (                                                                                                                        
+            item.mimetype == "application/pdf"                                                                                            
+            or (item.filename and item.filename.lower().endswith(".pdf"))                                                                 
+            or (item.title and item.title.lower().endswith(".pdf"))                                                                       
+        )                                                                                                                                 
+        if not is_pdf:                                                                                                                    
+            raise ValidationError({"detail": "Only PDF documents can be signed."})                                                        
+
+        # utiliser le code de Yassir et Nicolas pour signer **electroniquement** seulement le pdf
+        #PDF accessible via default_storage.open(file.id)
+        #
+        # 
+        # 
+        # #                                    
+        serializer = serializers.SelfSignSerializer(data=request.data)                                                                    
+        serializer.is_valid(raise_exception=True)                                                                                         
+        validated_data = serializer.validated_data
+        response_serializer = serializers.ItemSerializer(
+            item, context=self.get_serializer_context()
+        )
+        return Response(response_serializer.data, status=status.HTTP_200_OK)
 
 
 # Declare the schema statically because `get_serializer_class` depends on
