@@ -1768,6 +1768,29 @@ class Item(TreeModel, BaseModel):
 
         return item
 
+class Signature(BaseModel):
+    file_hash = models.CharField(_("file_hash"), max_length=64)
+    file = models.OneToOneField(
+    Item,
+    on_delete=models.CASCADE,
+    related_name="signature",
+    )
+
+class Received(BaseModel):
+    is_signed = models.BooleanField(_("is_signed"))
+    eIDAS = models.CharField(_("eIDAS"),max_length=128,null=True,blank=True)
+    name = models.CharField(_("name"), max_length=64,null=True,blank=True)
+    surname = models.CharField(_("surname"), max_length=64,null=True,blank=True)
+    eIDAS_lvl_1 = models.IntegerField(_("eIDAS_lvl_1"), null = True, blank = True)
+    eIDAS_lvl_2 = models.IntegerField(_("eIDAS_lvl_2"), null = True, blank = True)
+    date_signed = models.DateTimeField(null=True, blank=True)
+
+    signature = models.ForeignKey(
+        Signature,
+        on_delete=models.CASCADE,
+        related_name="recipients",
+    )
+
 
 class MirrorItemTask(BaseModel):
     """Model managing a status for a mirroring task."""

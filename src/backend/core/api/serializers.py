@@ -57,6 +57,30 @@ class UserSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "email", "full_name", "short_name"]
 
+class SignatureSerializer(serializers.ModelSerializer):
+        class Meta:
+            model=models.Signature
+            fields = [
+                "id",
+                "file_hash",
+                "file",
+                "recipients"
+            ]
+
+class ReceivedSerializer(serializers.ModelSerializer):
+        class Meta:
+            model = models.Received
+            fields = [ 
+                "id",
+                "is_signed",
+                "eIDAS_lvl_1",
+                "eIDAS_lvl_2",
+                "name",
+                "surname", 
+                "auth_level",
+                "id_level", 
+                "date_signed"
+            ]
 
 class UserLightSerializer(UserSerializer):
     """Serialize users with limited fields."""
@@ -513,6 +537,7 @@ class SearchItemSerializer(ListItemSerializer):
 class ItemSerializer(ListItemSerializer):
     """Serialize items with all fields for display in detail views."""
 
+    signature = SignatureSerializer(read_only=True)
     class Meta:
         model = models.Item
         fields = [
