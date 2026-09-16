@@ -212,3 +212,15 @@ export const itemToPreviewFile = (item: Item) => {
     size: item.size,
   } as FilePreviewType;
 };
+
+export const isPdfItem = (item?: Item | null): boolean => {
+  if (!item || item.type === ItemType.FOLDER) return false;
+  return (
+    item.mimetype === "application/pdf" ||
+    Boolean(
+      item.title?.toLowerCase().endsWith(".pdf") ||
+      item.filename?.toLowerCase().endsWith(".pdf"),
+    )
+  );
+};
+

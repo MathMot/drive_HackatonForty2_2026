@@ -30,7 +30,11 @@ import { ItemShareModal } from "../components/modals/share/ItemShareModal";
 import { ItemSignModal } from "../components/modals/sign/ItemSignModal";
 import { useDeleteItem } from "./useDeleteItem";
 import { ExplorerMoveFolder } from "../components/modals/move/ExplorerMoveFolderModal";
-import { getParentIdFromPath, setManualNavigationItemId } from "../utils/utils";
+import {
+  getParentIdFromPath,
+  isPdfItem,
+  setManualNavigationItemId,
+} from "../utils/utils";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import {
@@ -168,7 +172,7 @@ export const useItemActionMenuItems = ({
       {
         icon: <span className="material-icons">draw</span>,
         label: t("explorer.item.actions.sign"),
-        isHidden: item.type === ItemType.FOLDER || minimal,
+        isHidden: minimal || !isPdfItem(item),
         callback: () => {
           const isOwner =
             item.user_role === Role.OWNER ||
