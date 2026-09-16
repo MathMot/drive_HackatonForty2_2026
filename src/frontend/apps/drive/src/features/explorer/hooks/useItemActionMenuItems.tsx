@@ -16,7 +16,6 @@ import {
   ArrowRight,
   Info,
   Trash,
-  BubbleEdit,
 } from "@gouvfr-lasuite/ui-components/icons";
 import { t } from "i18next";
 import {
@@ -91,7 +90,7 @@ export const useItemActionMenuItems = ({
 
   useEffect(() => {
     onModalOpenChange?.(isModalOpen);
-  }, [isModalOpen, onModalOpenChange]);
+  }, [isModalOpen]);
 
   const handleFavorite = async (effectiveItemId: string, item: Item) => {
     await createFavoriteItem(effectiveItemId, {
@@ -127,14 +126,12 @@ export const useItemActionMenuItems = ({
 
   const getMenuItems = (
     item: Item,
-    {
-      minimal = false,
-      itemId,
-      allowCreate = false,
-    }: { minimal?: boolean; itemId?: string; allowCreate?: boolean } = {},
+    options?: { minimal?: boolean; itemId?: string; allowCreate?: boolean },
   ): MenuItem[] => {
-    const effectiveItemId = itemId || item.id;
-    const effectiveItem = itemId ? { ...item, id: itemId } : item;
+    const minimal = options?.minimal ?? false;
+    const allowCreate = options?.allowCreate ?? false;
+    const effectiveItemId = options?.itemId ?? item.originalId ?? item.id;
+    const effectiveItem = { ...item, id: effectiveItemId };
     const showAddChildren = allowCreate;
 
     return [
@@ -171,7 +168,7 @@ export const useItemActionMenuItems = ({
       {
         icon: <span className="material-icons">draw</span>,
         label: t("explorer.item.actions.sign"),
-        isHidden: !item.abilities?.can_sign,
+        isHidden: item.type === ItemType.FOLDER || minimal,
         callback: () => {
           const isOwner =
             item.user_role === Role.OWNER ||
@@ -294,7 +291,6 @@ export const useItemActionMenuItems = ({
           />
         )}
       {currentItem &&
-        currentItem.abilities?.can_sign &&
         signItemModal.isOpen && (
           <ItemSignModal
             {...signItemModal}

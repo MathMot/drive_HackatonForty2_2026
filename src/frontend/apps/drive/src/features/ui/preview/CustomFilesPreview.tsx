@@ -95,12 +95,7 @@ export const CustomFilesPreview = ({
   };
 
   const effectiveSignMode: SignMode | undefined =
-    signMode ||
-    (isSignMode
-      ? "selfsign"
-      : currentItem?.sign_status === "waiting" && currentItem?.abilities?.can_sign
-      ? "sign"
-      : undefined);
+    signMode || (isSignMode ? "selfsign" : undefined);
 
   const effectiveIsSignMode = isSignMode || !!effectiveSignMode;
 
@@ -127,7 +122,7 @@ export const CustomFilesPreview = ({
 
   }, [effectiveSignMode, user, currentItem?.sign_request]);
 
-  const isLockedFile = !!(effectiveIsSignMode || currentItem?.sign_status);
+  const isLockedFile = !!effectiveIsSignMode;
 
   return (
     <>
@@ -286,8 +281,8 @@ const CustomFilesPreviewRightHeader = ({
         </>
       )}
 
-      {/* Sign button when viewing file that is signable */}
-      {!isSignMode && currentItem?.abilities?.can_sign && (
+      {/* Sign button when viewing file */}
+      {!isSignMode && currentItem && (
         <>
           <div className="custom-files-preview-right-header">
             <Button
