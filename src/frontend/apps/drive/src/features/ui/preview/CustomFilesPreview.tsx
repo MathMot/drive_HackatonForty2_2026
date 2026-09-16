@@ -22,11 +22,9 @@ import {
   SignZoneOverlayManager,
 } from "@/features/explorer/components/modals/sign/SignZoneOverlayManager";
 import {
-  useMutationCreateSignRequests,
+  useMutationSelfSign,
   useMutationExecuteSign,
-  useMutationDeclineSign,
 } from "@/features/explorer/hooks/useMutationsAccesses";
-import { DeclineSignModal } from "@/features/explorer/components/modals/sign/DeclineSignModal";
 import { useRouter } from "next/router";
 
 export enum CustomFilesPreviewMode {
@@ -36,7 +34,7 @@ export enum CustomFilesPreviewMode {
   CONTEXTUAL = "contextual",
 }
 
-export type SignMode = "selfsign" | "requestsign" | "sign";
+export type SignMode = "selfsign" | "sign";
 
 type CustomFilesPreviewProps = {
   currentItem?: Item;
@@ -194,35 +192,25 @@ const CustomFilesPreviewRightHeader = ({
   const { user } = useAuth();
   const shareModal = useModal();
   const signModal = useModal();
-  const { mutateAsync: createSignRequests } = useMutationCreateSignRequests();
+  const { mutateAsync: selfSign } = useMutationSelfSign();
   const { mutateAsync: executeSign } = useMutationExecuteSign();
-  const { mutateAsync: declineSign } = useMutationDeclineSign();
   const router = useRouter();
 
-  const [isDeclineModalOpen, setIsDeclineModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!currentItem) {
     return null;
   }
 
-  const storedInvitees =
-    typeof window !== "undefined"
-      ? sessionStorage.getItem("sign_invitees")
-      : null;
-  const signers: string[] = storedInvitees ? JSON.parse(storedInvitees) : [];
-
   const handleSelfSign = async () => {
     if (!signZone) return;
     setIsSubmitting(true);
     try {
-      await createSignRequests({
+      await selfSign({
         itemId: currentItem.id,
-        signers: [user?.email ?? ""],
         zone: signZone,
-        is_self_sign: true,
+        suffix: t("sign_modal.sign_file_suffix", "signé"),
       });
-      sessionStorage.removeItem("sign_invitees");
       if ((currentItem as any).parentId) {
         router.push(`/explorer/items/${(currentItem as any).parentId}`);
       } else {
@@ -236,65 +224,18 @@ const CustomFilesPreviewRightHeader = ({
     }
   };
 
-  const handleSendRequests = async () => {
+  const handleExecuteSign = async () => {
     if (!signZone) return;
     setIsSubmitting(true);
     try {
-      const currentStored =
-        typeof window !== "undefined"
-          ? sessionStorage.getItem("sign_invitees")
-          : null;
-      const targetSigners: string[] = currentStored
-        ? JSON.parse(currentStored)
-        : signers;
-
-      if (!targetSigners || targetSigners.length === 0) {
-        alert(t("sign_viewer.no_signers", "Aucun signataire spécifié."));
-        return;
-      }
-
-      await createSignRequests({
+      await executeSign({
         itemId: currentItem.id,
-        signers: targetSigners,
         zone: signZone,
-        is_self_sign: false,
       });
-      sessionStorage.removeItem("sign_invitees");
-      if ((currentItem as any).parentId) {
-        router.push(`/explorer/items/${(currentItem as any).parentId}`);
-      } else {
-        router.push("/explorer/items/my-files");
-      }
-    } catch (err) {
-      console.error("Failed to send sign requests", err);
-      alert(t("sign_viewer.error_create", "Une erreur est survenue lors de l'envoi de la demande de signature."));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleExecuteSign = async () => {
-    setIsSubmitting(true);
-    try {
-      await executeSign({ itemId: currentItem.id });
       router.push("/explorer/items/shared-with-me");
     } catch (err) {
       console.error("Failed to sign document", err);
-      alert("Une erreur est survenue lors de la signature.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleConfirmDecline = async (reason?: string) => {
-    setIsSubmitting(true);
-    try {
-      await declineSign({ itemId: currentItem.id, reason });
-      setIsDeclineModalOpen(false);
-      router.push("/explorer/items/shared-with-me");
-    } catch (err) {
-      console.error("Failed to decline sign request", err);
-      alert("Une erreur est survenue lors du refus de la signature.");
+      alert(t("sign_viewer.error_create", "Une erreur est survenue lors de la signature."));
     } finally {
       setIsSubmitting(false);
     }
@@ -302,7 +243,7 @@ const CustomFilesPreviewRightHeader = ({
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-      {/* Mode A / Option C: Self sign */}
+      {/* Self sign mode */}
       {isSignMode && signMode === "selfsign" && (
         <Button
           color="brand"
@@ -312,57 +253,26 @@ const CustomFilesPreviewRightHeader = ({
         >
           {signZone
             ? t("sign_viewer.self_sign_btn", "Signer le document")
-            : t("sign_viewer.place_zone", "Cliquez sur le document pour placer la zone")}
+            : t("sign_viewer.place_zone", "Cliquez sur le document pour placer le tampon")}
         </Button>
       )}
 
-      {/* Mode A / Option D: Request signatures from others */}
-      {isSignMode && signMode === "requestsign" && (
+      {/* Recipient signing mode */}
+      {isSignMode && signMode === "sign" && (
         <Button
           color="brand"
-          icon={<span className="material-icons">send</span>}
+          icon={<span className="material-icons">check</span>}
           disabled={!signZone || isSubmitting}
-          onClick={handleSendRequests}
+          onClick={handleExecuteSign}
         >
           {signZone
-            ? t("sign_viewer.send_requests_btn", {
-                count: signers.length,
-                defaultValue: `Envoyer la demande${signers.length > 0 ? ` (${signers.length})` : ""}`,
-              })
-            : t("sign_viewer.place_zone", "Cliquez sur le document pour placer la zone")}
+            ? t("sign_viewer.recipient_sign_btn", "Signer le document")
+            : t("sign_viewer.place_zone", "Cliquez sur le document pour placer le tampon")}
         </Button>
-      )}
-
-      {/* Mode B: Recipient signing or declining */}
-      {isSignMode && signMode === "sign" && (
-        <>
-          <Button
-            variant="bordered"
-            disabled={isSubmitting}
-            onClick={() => setIsDeclineModalOpen(true)}
-          >
-            {t("sign_viewer.recipient_decline_btn", "Refuser")}
-          </Button>
-          <Button
-            color="brand"
-            icon={<span className="material-icons">check</span>}
-            disabled={isSubmitting}
-            onClick={handleExecuteSign}
-          >
-            {t("sign_viewer.recipient_sign_btn", "Signer le document")}
-          </Button>
-
-          <DeclineSignModal
-            isOpen={isDeclineModalOpen}
-            onClose={() => setIsDeclineModalOpen(false)}
-            isLoading={isSubmitting}
-            onConfirm={handleConfirmDecline}
-          />
-        </>
       )}
 
       {/* Default share button (when not in sign mode) */}
-      {!isSignMode && mode === CustomFilesPreviewMode.DEFAULT && !currentItem.sign_status && (
+      {!isSignMode && mode === CustomFilesPreviewMode.DEFAULT && (
         <>
           <div className="custom-files-preview-right-header">
             <Button variant="tertiary" onClick={shareModal.open}>
@@ -376,8 +286,8 @@ const CustomFilesPreviewRightHeader = ({
         </>
       )}
 
-      {/* Sign / Request signatures button when viewing file that is signable */}
-      {!isSignMode && currentItem?.abilities?.can_sign && currentItem?.sign_status !== "waiting" && (
+      {/* Sign button when viewing file that is signable */}
+      {!isSignMode && currentItem?.abilities?.can_sign && (
         <>
           <div className="custom-files-preview-right-header">
             <Button

@@ -122,25 +122,50 @@ export const useMutationDeleteInvitation = () => {
   });
 };
 
-export const useMutationCreateSignRequests = () => {
+export const useMutationSelfSign = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      itemId,
+      zone,
+      suffix,
+    }: {
+      itemId: string;
+      zone: any;
+      suffix?: string;
+    }) => {
+      const response = await fetchAPI(
+        `items/${itemId}/self-sign/`,
+        {
+          method: "POST",
+          body: JSON.stringify({ zone, suffix, is_self_sign: true }),
+        },
+      );
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["items"] });
+    },
+  });
+};
+
+export const useMutationRequestSign = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({
       itemId,
       signers,
-      zone,
-      is_self_sign,
+      suffix,
     }: {
       itemId: string;
       signers: string[];
-      zone: any;
-      is_self_sign?: boolean;
+      suffix?: string;
     }) => {
       const response = await fetchAPI(
-        `items/${itemId}/sign-requests/`,
+        `items/${itemId}/request-sign/`,
         {
           method: "POST",
-          body: JSON.stringify({ signers, zone, is_self_sign }),
+          body: JSON.stringify({ signers, suffix, is_self_sign: false }),
         },
       );
       return response.json();
@@ -154,37 +179,18 @@ export const useMutationCreateSignRequests = () => {
 export const useMutationExecuteSign = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ itemId }: { itemId: string }) => {
+    mutationFn: async ({
+      itemId,
+      zone,
+    }: {
+      itemId: string;
+      zone?: any;
+    }) => {
       const response = await fetchAPI(
         `items/${itemId}/execute-sign/`,
         {
           method: "POST",
-          body: JSON.stringify({}),
-        },
-      );
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["items"] });
-    },
-  });
-};
-
-export const useMutationDeclineSign = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async ({
-      itemId,
-      reason,
-    }: {
-      itemId: string;
-      reason?: string;
-    }) => {
-      const response = await fetchAPI(
-        `items/${itemId}/decline-sign/`,
-        {
-          method: "POST",
-          body: JSON.stringify({ reason }),
+          body: JSON.stringify({ zone }),
         },
       );
       return response.json();

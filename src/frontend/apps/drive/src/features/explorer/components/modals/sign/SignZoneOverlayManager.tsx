@@ -34,7 +34,7 @@ const DEFAULT_HEIGHT_PCT = 10;
 
 export interface SignZoneOverlayManagerProps {
   isSignMode: boolean;
-  signMode?: "selfsign" | "requestsign" | "sign";
+  signMode?: "selfsign" | "sign";
   currentItemId?: string;
   fixedZone?: SignZone | null;
   signerDisplayName?: string;
@@ -52,19 +52,14 @@ export const SignZoneOverlayManager = ({
   const { t } = useTranslation();
   const [pages, setPages] = useState<HTMLElement[]>([]);
   const [currentZone, setCurrentZone] = useState<SignZone | null>(
-    signMode === "sign" ? fixedZone || null : null,
+    fixedZone || null,
   );
 
-  const isInteractive = signMode === "selfsign" || signMode === "requestsign";
+  const isInteractive = true;
 
   // Reset or update zone whenever itemId, signMode, or fixedZone changes
   useEffect(() => {
-    if (signMode === "sign") {
-      setCurrentZone(fixedZone || null);
-    } else {
-      // In selfsign and requestsign, always start unplaced for new document or mode
-      setCurrentZone(null);
-    }
+    setCurrentZone(fixedZone || null);
   }, [currentItemId, signMode, fixedZone]);
 
   const dragRef = useRef<{
@@ -338,85 +333,55 @@ export const SignZoneOverlayManager = ({
                   top: `${currentZone.yPct}%`,
                   width: `${currentZone.widthPct}%`,
                   height: `${currentZone.heightPct}%`,
-                  border: isInteractive ? "2px dashed #000091" : "2px solid #000091",
-                  backgroundColor: "#F5F5FE",
+                  border: "1.5px solid rgba(0, 0, 145, 0.75)",
+                  backgroundColor: "rgba(0, 0, 145, 0.04)",
                   cursor: isInteractive ? "grab" : "default",
                   display: "flex",
                   flexDirection: "column",
-                  justifyContent: "space-between",
-                  boxShadow: "0 2px 8px rgba(0, 0, 145, 0.15)",
+                  justifyContent: "center",
+                  alignItems: "center",
                   borderRadius: "4px",
                   userSelect: "none",
                   boxSizing: "border-box",
-                  padding: "6px 10px",
+                  padding: "4px 8px",
                   pointerEvents: "auto",
                 }}
               >
-                {/* Visual content based on mode */}
-                {signMode === "requestsign" ? (
+                {/* Transparent rubber stamp: just name and date */}
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    height: "100%",
+                    width: "100%",
+                    textAlign: "center",
+                    color: "#000091",
+                  }}
+                >
                   <div
                     style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      height: "100%",
-                      textAlign: "center",
+                      fontSize: "0.85rem",
+                      fontWeight: "bold",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      width: "100%",
                     }}
                   >
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "#000091", fontWeight: "bold", fontSize: "0.8rem" }}>
-                      <span className="material-icons" style={{ fontSize: "18px" }}>draw</span>
-                      <span>{t("sign_zone.future_title", "Zone de signature")}</span>
-                    </div>
-                    <span style={{ fontSize: "0.68rem", color: "#4d4d4d", marginTop: "2px" }}>
-                      {t("sign_zone.future_desc", "Les destinataires signeront à cet emplacement")}
-                    </span>
+                    {signerDisplayName || t("sign_zone.default_signer", "Signataire")}
                   </div>
-                ) : (
-                  // Official stamp rendering for selfsign and sign modes
                   <div
                     style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      justifyContent: "space-between",
-                      height: "100%",
+                      fontSize: "0.68rem",
+                      opacity: 0.8,
+                      marginTop: "2px",
                     }}
                   >
-                    <div
-                      style={{
-                        fontSize: "0.68rem",
-                        fontWeight: 700,
-                        color: "#000091",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "4px",
-                      }}
-                    >
-                      <span className="material-icons" style={{ fontSize: "14px", color: "#000091" }}>
-                        verified_user
-                      </span>
-                      <span>{t("sign_zone.signed_by", "Signé électroniquement par :")}</span>
-                    </div>
-
-                    <div
-                      style={{
-                        fontSize: "0.85rem",
-                        fontWeight: "bold",
-                        color: "#000091",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        padding: "2px 0",
-                      }}
-                    >
-                      {signerDisplayName || t("sign_zone.default_signer", "Signataire")}
-                    </div>
-
-                    <div style={{ fontSize: "0.64rem", color: "#4d4d4d" }}>
-                      {t("sign_zone.signed_at", { date: formattedDate, defaultValue: `Le ${formattedDate}` })}
-                    </div>
+                    {formattedDate}
                   </div>
-                )}
+                </div>
 
                 {/* Resize handle (bottom-right corner) only in interactive mode */}
                 {isInteractive && (

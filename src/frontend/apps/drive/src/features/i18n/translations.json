@@ -726,34 +726,17 @@
         "role_signer": "Signer",
         "remove_signer": "Remove",
         "cancel": "Cancel",
-        "continue": "Continue to document"
+        "send_request": "Send signature request",
+        "sign_file_suffix": "signed"
       },
       "sign_viewer": {
-        "confirm_zone": "Confirm signature zone",
-        "place_zone": "Click on the document to place the zone",
+        "place_zone": "Click on the document to place the stamp",
         "self_sign_btn": "Sign document",
-        "send_requests_btn": "Send signature request ({{count}})",
         "recipient_sign_btn": "Sign document",
-        "recipient_decline_btn": "Decline",
         "self_signed_success": "Document signed successfully!",
         "recipient_signed_success": "Document signed successfully!",
-        "recipient_declined_success": "Signature request declined.",
         "success": "Signature request sent successfully!",
-        "no_signers": "No signers specified.",
-        "error_create": "An error occurred while creating signature requests."
-      },
-      "decline_sign_modal": {
-        "title": "Decline to sign document",
-        "description": "Are you sure you want to decline signing this document? The issuer will be notified and the document will be marked as declined.",
-        "reason_label": "Reason for decline (optional)",
-        "reason_placeholder": "Provide a reason for declining if desired...",
-        "cancel": "Cancel",
-        "confirm": "Confirm decline"
-      },
-      "sign_badge": {
-        "waiting": "Waiting",
-        "signed": "Signed",
-        "declined": "Declined"
+        "error_create": "An error occurred while signing the document."
       },
       "sign_zone": {
         "label": "Signature",
@@ -1493,34 +1476,17 @@
         "role_signer": "Signataire",
         "remove_signer": "Supprimer",
         "cancel": "Annuler",
-        "continue": "Continuer vers le document"
+        "send_request": "Envoyer la demande",
+        "sign_file_suffix": "signé"
       },
       "sign_viewer": {
-        "confirm_zone": "Confirmer la zone de signature",
-        "place_zone": "Cliquez sur le document pour placer la zone",
+        "place_zone": "Cliquez sur le document pour placer le tampon",
         "self_sign_btn": "Signer le document",
-        "send_requests_btn": "Envoyer la demande ({{count}})",
         "recipient_sign_btn": "Signer le document",
-        "recipient_decline_btn": "Refuser",
         "self_signed_success": "Document signé avec succès !",
         "recipient_signed_success": "Document signé avec succès !",
-        "recipient_declined_success": "Demande de signature refusée.",
         "success": "Demande de signature envoyée avec succès !",
-        "no_signers": "Aucun signataire spécifié.",
-        "error_create": "Une erreur est survenue lors de l'envoi de la demande de signature."
-      },
-      "decline_sign_modal": {
-        "title": "Refuser de signer le document",
-        "description": "Êtes-vous sûr de vouloir refuser de signer ce document ? L'émetteur en sera informé et le document sera marqué comme refusé.",
-        "reason_label": "Motif du refus (optionnel)",
-        "reason_placeholder": "Indiquez la raison de votre refus si vous le souhaitez...",
-        "cancel": "Annuler",
-        "confirm": "Confirmer le refus"
-      },
-      "sign_badge": {
-        "waiting": "En attente",
-        "signed": "Signé",
-        "declined": "Refusé"
+        "error_create": "Une erreur est survenue lors de la signature du document."
       },
       "sign_zone": {
         "label": "Signature",
@@ -2260,34 +2226,17 @@
         "role_signer": "Ondertekenaar",
         "remove_signer": "Verwijderen",
         "cancel": "Annuleren",
-        "continue": "Doorgaan naar document"
+        "send_request": "Verzoek versturen",
+        "sign_file_suffix": "ondertekend"
       },
       "sign_viewer": {
-        "confirm_zone": "Handtekeningzone bevestigen",
-        "place_zone": "Klik op het document om de zone te plaatsen",
+        "place_zone": "Klik op het document om het stempel te plaatsen",
         "self_sign_btn": "Document ondertekenen",
-        "send_requests_btn": "Verzoek verzenden ({{count}})",
         "recipient_sign_btn": "Document ondertekenen",
-        "recipient_decline_btn": "Weigeren",
         "self_signed_success": "Document succesvol ondertekend!",
         "recipient_signed_success": "Document succesvol ondertekend!",
-        "recipient_declined_success": "Handtekeningverzoek geweigerd.",
         "success": "Handtekeningverzoek succesvol verzonden!",
-        "no_signers": "Geen ondertekenaars opgegeven.",
-        "error_create": "Er is een fout opgetreden bij het verzenden van het handtekeningverzoek."
-      },
-      "decline_sign_modal": {
-        "title": "Document weigeren te ondertekenen",
-        "description": "Weet u zeker dat u dit document wilt weigeren te ondertekenen? De afzender wordt op de hoogte gesteld en het document wordt gemarkeerd als geweigerd.",
-        "reason_label": "Reden voor weigering (optioneel)",
-        "reason_placeholder": "Geef indien gewenst een reden op voor de weigering...",
-        "cancel": "Annuleren",
-        "confirm": "Weigering bevestigen"
-      },
-      "sign_badge": {
-        "waiting": "In afwachting",
-        "signed": "Ondertekend",
-        "declined": "Geweigerd"
+        "error_create": "Er is een fout opgetreden bij het ondertekenen van het document."
       },
       "sign_zone": {
         "label": "Handtekening",

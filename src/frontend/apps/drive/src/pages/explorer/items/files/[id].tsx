@@ -39,20 +39,18 @@ export default function FilePage() {
   }
 
   const signMode =
-    router.query.mode === "selfsign" ||
-    router.query.mode === "requestsign" ||
-    router.query.mode === "sign"
-      ? (router.query.mode as "selfsign" | "requestsign" | "sign")
+    router.query.mode === "selfsign" || router.query.mode === "sign"
+      ? (router.query.mode as "selfsign" | "sign")
       : undefined;
 
   const handleClose = () => {
     if (window.history.length > 1) {
       router.back();
+    } else if (signMode === "sign") {
+      router.push("/explorer/items/shared-with-me");
     } else if (item.parents && item.parents.length > 0) {
       const directParent = item.parents[item.parents.length - 1];
       router.push(`/explorer/items/${directParent.id}`);
-    } else if (item.sign_status === "waiting") {
-      router.push("/explorer/items/shared-with-me");
     } else {
       router.push("/explorer/items/my-files");
     }

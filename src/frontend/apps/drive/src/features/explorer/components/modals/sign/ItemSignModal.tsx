@@ -10,6 +10,7 @@ import { useTranslation } from "react-i18next";
 import { Item, User } from "@/features/drivers/types";
 import { useAuth } from "@/features/auth/Auth";
 import { useUsers } from "@/features/users/hooks/useUserQueries";
+import { useMutationRequestSign } from "@/features/explorer/hooks/useMutationsAccesses";
 
 export interface ItemSignModalProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ export const ItemSignModal = ({ isOpen, onClose, item }: ItemSignModalProps) => 
   const { t } = useTranslation();
   const router = useRouter();
   const { user: currentUser } = useAuth();
+  const { mutateAsync: requestSign, isPending: isSubmitting } = useMutationRequestSign();
 
   const [signers, setSigners] = useState<string[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -69,18 +71,24 @@ export const ItemSignModal = ({ isOpen, onClose, item }: ItemSignModalProps) => 
   };
 
   const handleSignMyself = () => {
-    sessionStorage.removeItem("sign_invitees");
     onClose();
     router.push(`/explorer/items/files/${item.id}?mode=selfsign`);
   };
 
-  const handleContinue = () => {
+  const handleSendRequests = async () => {
     if (signers.length === 0) return;
-    sessionStorage.setItem("sign_invitees", JSON.stringify(signers));
-    onClose();
-    router.push(`/explorer/items/files/${item.id}?mode=requestsign`);
+    try {
+      await requestSign({
+        itemId: item.id,
+        signers,
+        suffix: t("sign_modal.sign_file_suffix", "signé"),
+      });
+      onClose();
+    } catch (err) {
+      console.error("Failed to request signatures", err);
+      alert(t("sign_viewer.error_create", "Une erreur est survenue lors de l'envoi de la demande de signature."));
+    }
   };
-
 
   const fileName = removeFileExtension(item.title);
 
@@ -93,15 +101,15 @@ export const ItemSignModal = ({ isOpen, onClose, item }: ItemSignModalProps) => 
       aria-label="Sign modal"
       rightActions={
         <>
-          <Button variant="bordered" onClick={onClose}>
+          <Button variant="bordered" disabled={isSubmitting} onClick={onClose}>
             {t("sign_modal.cancel", "Annuler")}
           </Button>
           <Button
             color="brand"
-            disabled={signers.length === 0}
-            onClick={handleContinue}
+            disabled={signers.length === 0 || isSubmitting}
+            onClick={handleSendRequests}
           >
-            {t("sign_modal.continue", "Continuer vers le document")}
+            {t("sign_modal.send_request", "Envoyer la demande")}
           </Button>
         </>
       }

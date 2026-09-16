@@ -1,4 +1,5 @@
-import { Item, ItemType } from "@/features/drivers/types";
+import { Item, ItemType, Role } from "@/features/drivers/types";
+import { useAuth } from "@/features/auth/Auth";
 import {
   useTreeContext,
   MenuItem,
@@ -62,6 +63,7 @@ export const useItemActionMenuItems = ({
   onModalOpenChange,
 }: UseItemActionMenuItemsOptions = {}): UseItemActionMenuItemsReturn => {
   const router = useRouter();
+  const { user } = useAuth();
   const { setRightPanelForcedItem, setRightPanelOpen, ...explorerContext } =
     useGlobalExplorer();
   const { handleDownloadItem } = useDownloadItem();
@@ -89,7 +91,7 @@ export const useItemActionMenuItems = ({
 
   useEffect(() => {
     onModalOpenChange?.(isModalOpen);
-  }, [isModalOpen]);
+  }, [isModalOpen, onModalOpenChange]);
 
   const handleFavorite = async (effectiveItemId: string, item: Item) => {
     await createFavoriteItem(effectiveItemId, {
@@ -125,12 +127,14 @@ export const useItemActionMenuItems = ({
 
   const getMenuItems = (
     item: Item,
-    options?: { minimal?: boolean; itemId?: string; allowCreate?: boolean },
+    {
+      minimal = false,
+      itemId,
+      allowCreate = false,
+    }: { minimal?: boolean; itemId?: string; allowCreate?: boolean } = {},
   ): MenuItem[] => {
-    const minimal = options?.minimal ?? false;
-    const allowCreate = options?.allowCreate ?? false;
-    const effectiveItemId = options?.itemId ?? item.originalId ?? item.id;
-    const effectiveItem = { ...item, id: effectiveItemId };
+    const effectiveItemId = itemId || item.id;
+    const effectiveItem = itemId ? { ...item, id: itemId } : item;
     const showAddChildren = allowCreate;
 
     return [
@@ -169,11 +173,16 @@ export const useItemActionMenuItems = ({
         label: t("explorer.item.actions.sign"),
         isHidden: !item.abilities?.can_sign,
         callback: () => {
-          if (item.sign_status === "waiting") {
-            router.push(`/explorer/items/files/${effectiveItemId}?mode=sign`);
-          } else {
+          const isOwner =
+            item.user_role === Role.OWNER ||
+            item.creator?.id === user?.id ||
+            item.abilities?.accesses_manage;
+
+          if (isOwner) {
             setCurrentItem(effectiveItem);
             signItemModal.open();
+          } else {
+            router.push(`/explorer/items/files/${effectiveItemId}?mode=sign`);
           }
         },
       },
