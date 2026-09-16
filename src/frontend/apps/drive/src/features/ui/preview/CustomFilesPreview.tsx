@@ -25,6 +25,10 @@ import {
   useMutationSelfSign,
   useMutationExecuteSign,
 } from "@/features/explorer/hooks/useMutationsAccesses";
+import {
+  addToast,
+  ToasterItem,
+} from "@/features/ui/components/toaster/Toaster";
 import { useRouter } from "next/router";
 
 export enum CustomFilesPreviewMode {
@@ -81,8 +85,6 @@ export const CustomFilesPreview = ({
         router.back();
       } else if ((currentItem as any)?.parentId) {
         router.push(`/explorer/items/${(currentItem as any).parentId}`);
-      } else if (currentItem?.sign_status === "waiting") {
-        router.push("/explorer/items/shared-with-me");
       } else {
         router.push("/explorer/items/my-files");
       }
@@ -213,7 +215,11 @@ const CustomFilesPreviewRightHeader = ({
       }
     } catch (err) {
       console.error("Failed to self-sign document", err);
-      alert(t("sign_viewer.error_create", "Une erreur est survenue lors de la signature du document."));
+      addToast(
+        <ToasterItem type="error">
+          <span>{t("sign_viewer.error_create", "Une erreur est survenue lors de la signature du document.")}</span>
+        </ToasterItem>,
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -230,7 +236,11 @@ const CustomFilesPreviewRightHeader = ({
       router.push("/explorer/items/shared-with-me");
     } catch (err) {
       console.error("Failed to sign document", err);
-      alert(t("sign_viewer.error_create", "Une erreur est survenue lors de la signature."));
+      addToast(
+        <ToasterItem type="error">
+          <span>{t("sign_viewer.error_create", "Une erreur est survenue lors de la signature.")}</span>
+        </ToasterItem>,
+      );
     } finally {
       setIsSubmitting(false);
     }

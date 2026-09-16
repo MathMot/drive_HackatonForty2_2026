@@ -143,8 +143,9 @@ export const useMutationSelfSign = () => {
       );
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["items"] });
+      queryClient.invalidateQueries({ queryKey: ["item", variables.itemId] });
     },
   });
 };
@@ -170,8 +171,9 @@ export const useMutationRequestSign = () => {
       );
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["items"] });
+      queryClient.invalidateQueries({ queryKey: ["item", variables.itemId] });
     },
   });
 };
@@ -195,8 +197,9 @@ export const useMutationExecuteSign = () => {
       );
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["items"] });
+      queryClient.invalidateQueries({ queryKey: ["item", variables.itemId] });
     },
   });
 };

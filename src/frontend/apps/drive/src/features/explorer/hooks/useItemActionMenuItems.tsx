@@ -187,7 +187,6 @@ export const useItemActionMenuItems = ({
           }
         },
       },
-
       {
         icon: <Download />,
         label: t("explorer.item.actions.download"),

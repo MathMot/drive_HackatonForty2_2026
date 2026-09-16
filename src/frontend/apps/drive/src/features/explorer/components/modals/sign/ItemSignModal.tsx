@@ -11,6 +11,10 @@ import { Item, User } from "@/features/drivers/types";
 import { useAuth } from "@/features/auth/Auth";
 import { useUsers } from "@/features/users/hooks/useUserQueries";
 import { useMutationRequestSign } from "@/features/explorer/hooks/useMutationsAccesses";
+import {
+  addToast,
+  ToasterItem,
+} from "@/features/ui/components/toaster/Toaster";
 
 export interface ItemSignModalProps {
   isOpen: boolean;
@@ -86,7 +90,11 @@ export const ItemSignModal = ({ isOpen, onClose, item }: ItemSignModalProps) => 
       onClose();
     } catch (err) {
       console.error("Failed to request signatures", err);
-      alert(t("sign_viewer.error_create", "Une erreur est survenue lors de l'envoi de la demande de signature."));
+      addToast(
+        <ToasterItem type="error">
+          <span>{t("sign_viewer.error_create", "Une erreur est survenue lors de l'envoi de la demande de signature.")}</span>
+        </ToasterItem>,
+      );
     }
   };
 
@@ -174,8 +182,16 @@ export const ItemSignModal = ({ isOpen, onClose, item }: ItemSignModalProps) => 
                   )}
                   {!isSearching && filteredSuggestions.length === 0 && (
                     <div
+                      role="button"
+                      tabIndex={0}
                       className="sign-modal-suggestions__item"
                       onClick={() => addSigner(inputValue)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          addSigner(inputValue);
+                        }
+                      }}
                     >
                       <span className="material-icons">mail</span>
                       <span>Ajouter &quot;{inputValue.trim()}&quot;</span>
@@ -184,8 +200,16 @@ export const ItemSignModal = ({ isOpen, onClose, item }: ItemSignModalProps) => 
                   {filteredSuggestions.map((user: User) => (
                     <div
                       key={user.id}
+                      role="button"
+                      tabIndex={0}
                       className="sign-modal-suggestions__item"
                       onClick={() => addSigner(user.email)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          addSigner(user.email);
+                        }
+                      }}
                     >
                       <span className="material-icons">person</span>
                       <div className="sign-modal-suggestions__user-info">

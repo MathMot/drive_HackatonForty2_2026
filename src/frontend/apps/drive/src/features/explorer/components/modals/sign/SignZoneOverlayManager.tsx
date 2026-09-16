@@ -11,7 +11,7 @@ export interface SignZone {
   heightPct: number;
 }
 
-const RESIZE_HANDLE_SIZE = 16;
+const RESIZE_HANDLE_SIZE = 24;
 
 const resizeHandleStyle: React.CSSProperties = {
   position: "absolute",
@@ -292,10 +292,21 @@ export const SignZoneOverlayManager = ({
     };
   }, [isInteractive]);
 
+  const { i18n } = useTranslation();
   const formattedDate = useMemo(() => {
     const now = new Date();
-    return `${now.toLocaleDateString("fr-FR")} à ${now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`;
-  }, []);
+    const currentLang = i18n.language || "fr";
+    const datePart = now.toLocaleDateString(currentLang, {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+    const timePart = now.toLocaleTimeString(currentLang, {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    return `${datePart} ${timePart}`;
+  }, [i18n.language]);
 
   if (!isSignMode || pages.length === 0) {
     return null;
