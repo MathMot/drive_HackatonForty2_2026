@@ -70,7 +70,7 @@ from core.services.search_indexers import (
     get_visited_items_ids_of,
 )
 from core.storage.cache import invalidate_storage_used_cache
-from core.tasks.item import duplicate_file, process_item_purge, rename_file
+from core.tasks.item import duplicate_file,duplicate_file_sync_pdf, process_item_purge, rename_file
 from core.utils.analytics import posthog_capture
 from wopi.conversion import exceptions as conversion_exceptions
 from wopi.conversion.services import prepare_conversion
@@ -2018,32 +2018,18 @@ class ItemViewSet(
         serializer = self.get_serializer(duplicated_item)
         return drf.response.Response(serializer.data, status=drf.status.HTTP_201_CREATED)
 
-    @drf.decorators.action(detail=True, methods=["post"], url_path="request-sign")
-    def request_sign(self, request, *args, **kwargs):
-        item = self.get_object()
-        user = request.user
 
-        if item.type != models.ItemTypeChoices.FILE:
-            raise drf.exceptions.ValidationError(
-                {"detail": "Only items of type FILE can be sent for signature."},
-                code="item_request_sign_type_file_only",
-            )
+    def duplicate_sync(self, user, new_name):
+        """
+        Duplicate an item of type File. The item is duplicated in the folder where the original
+        item is.
+        The user who duplicates becomes the creator of the duplicate
+        """
 
-        signers = request.data.get("signers", [])
-        if not isinstance(signers, list) or not signers:
-            raise drf.exceptions.ValidationError(
-                {"signers": "A non-empty list of emails is required."}
-            )
+        item_to_duplicate = self.get_object()
 
-        emails = {email.strip().lower() for email in signers if email and email.strip()}
-        if not emails:
-            raise drf.exceptions.ValidationError(
-                {"signers": "A non-empty list of emails is required."}
-            )
-
-        users = models.User.objects.filter(email__in=emails)
-        users_by_email = {u.email.lower(): u for u in users if u.email}
-
+        # The duplicator becomes the creator of a new sized file: gate it like an
+        # upload so an over-quota user cannot grow their storage usage.
         can_upload = get_entitlements_backend().can_upload(user)
         if not can_upload["result"]:
             raise drf.exceptions.PermissionDenied(
@@ -2051,27 +2037,61 @@ class ItemViewSet(
                 code=can_upload.get("reason"),
             )
 
-        sign = models.Signatory(file_hash = "", file = item, user = user, eIDAS = "", eIDAS_lvl_1 = 1, eIDAS_lvl_2 = 1, date_signed = None, is_signed = False)
-        sign.save()
-        
+        parent = item_to_duplicate.parent() if item_to_duplicate.depth > 1 else None
 
+        if parent and parent.get_role(user) == models.RoleChoices.READER:
+            # If the user as reader role on the parent folder, then the duplicated
+            # item must be created at the user's root
+            parent = None
+        with transaction.atomic():
+            duplicated_item = models.Item.objects.create_child(
+                creator=user,
+                link_reach=None if parent else LinkReachChoices.RESTRICTED,
+                parent=parent,
+                title=new_name,  # Title uniqueness is managed in the create_child method
+                type=models.ItemTypeChoices.FILE,
+                size=item_to_duplicate.size,
+                upload_state=models.ItemUploadStateChoices.DUPLICATING,
+                mimetype=item_to_duplicate.mimetype,
+                filename=item_to_duplicate.filename,
+                description=item_to_duplicate.description,
+            )
+
+            if duplicated_item.is_root:
+                models.ItemAccess.objects.create(
+                    item=duplicated_item,
+                    user=user,
+                    role=models.RoleChoices.OWNER,
+                )
+
+        # Then duplicate the file in async way
+        new_item =  duplicate_file_sync_pdf(
+            item_to_duplicate_id=item_to_duplicate.id,
+            duplicated_item_id=duplicated_item.id,
+        )
+
+        posthog_capture("item_duplicate", user, {}, item=duplicated_item)
+
+        serializer = self.get_serializer(duplicated_item)
+        return new_item
+
+
+    @drf.decorators.action(detail=True, methods=["post"], url_path="request-sign")
+    def request_sign(self, request, *args, **kwargs):
+        item = self.get_object()
+        user = request.user
+        signers = request.data.get("signers", [])
+
+        for mail in signers:
+            found_user = None
+            try:
+                found_user = models.User.objects.get(email=mail)
+            except Exception as e: # not found
+                continue
+            sign = models.Signatory(file_hash = "NoHash", file = item, user = found_user, eIDAS = "", eIDAS_lvl_1 = 1, eIDAS_lvl_2 = 1, date_signed = None, is_signed = False)
+            sign.save()
         serializer = self.get_serializer(item)
         return Response(serializer.data, status=status.HTTP_200_OK)
-
-    # def _notify_signatories(self, item, signatories, sender):
-    #     """Send a signature-request email to every signatory on the given item."""
-    #     sender_name = sender.full_name or sender.email
-    #     for signatory in signatories:
-    #         if not signatory.user or not signatory.user.email:
-    #             continue
-    #         context = {
-    #             "title": _("{name} asks you to sign a document").format(name=sender_name),
-    #             "message": _(
-    #                 "{name} requests your signature on the following item:"
-    #             ).format(name=sender_name),
-    #         }
-    #         subject = _("Signature requested: {title}").format(title=item.title)
-    #         item.send_email(subject, [signatory.user.email], context, signatory.user.language)
 
     @action(detail=True, methods=["post"], url_path="self-sign")                                                                          
     def self_sign(self, request, *args, **kwargs):                                                                                        
@@ -2091,12 +2111,15 @@ class ItemViewSet(
         if not is_pdf:                                                                                                                    
             raise ValidationError({"detail": "Only PDF documents can be signed."})                                                        
 
+        item if isinstance(item, models.Item) else None
+        duplicated = self.duplicate_sync(request.user, item.filename.split(".pdf")[0] + "_signed"+".pdf")
+
+        new_item = models.Item.objects.get(id = duplicated.id)
+
+        #print(f"OK GOOD duplicated the file which is now : {new_item.title} : {new_item.id}")
         # utiliser le code de Yassir et Nicolas pour signer **electroniquement** seulement le pdf
         #PDF accessible via default_storage.open(file.id)
-        #
-        # 
-        # 
-        # #                                    
+
         serializer = serializers.SelfSignSerializer(data=request.data)                                                                    
         serializer.is_valid(raise_exception=True)                                                                                         
         validated_data = serializer.validated_data
@@ -2104,7 +2127,6 @@ class ItemViewSet(
             item, context=self.get_serializer_context()
         )
         return Response(response_serializer.data, status=status.HTTP_200_OK)
-
 
 # Declare the schema statically because `get_serializer_class` depends on
 # `self.item`, which reads `self.kwargs["resource_id"]` — unavailable during
