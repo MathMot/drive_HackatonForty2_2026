@@ -2088,7 +2088,7 @@ class ItemViewSet(
                 found_user = models.User.objects.get(email=mail)
             except Exception as e: # not found
                 continue
-            sign = models.Signatory(file_hash = "NoHash", file = item, user = found_user, eIDAS = "", eIDAS_lvl_1 = 1, eIDAS_lvl_2 = 1, date_signed = None, is_signed = False)
+            sign = models.Signatory(file_hash = "NoHashtp", file = item, user = found_user, eIDAS = "", eIDAS_lvl_1 = 1, eIDAS_lvl_2 = 1, date_signed = None, is_signed = False)
             sign.save()
         
         serializer = self.get_serializer(item)
