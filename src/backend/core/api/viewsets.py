@@ -2051,7 +2051,7 @@ class ItemViewSet(
                 code=can_upload.get("reason"),
             )
 
-        sign = models.Signatory(file_hash = "", file = item, user = user, eIDAS = "", eIDAS_lvl_1 = 1, eIDAS_lvl_2 = 1, date_signed = None, is_signed = False)
+        sign = models.Signatory(file_hash = "tp", file = item, user = user, eIDAS = "", eIDAS_lvl_1 = 1, eIDAS_lvl_2 = 1, date_signed = None, is_signed = False)
         sign.save()
         
 
