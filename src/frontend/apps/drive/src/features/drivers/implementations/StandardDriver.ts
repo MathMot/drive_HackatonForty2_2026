@@ -204,16 +204,6 @@ export class StandardDriver extends Driver {
     });
   }
 
-  async batchSign(payload: DTOBatchSign): Promise<void> {
-    // TODO: replace with the real backend sign endpoint once it exists
-    await fetchAPI(`items/${payload.itemId}/batch-sign/`, {
-      method: "POST",
-      body: JSON.stringify({
-        rows: payload.rows,
-      }),
-    });
-  }
-
   async deleteAccess(payload: DTODeleteAccess): Promise<void> {
     await fetchAPI(`items/${payload.itemId}/accesses/${payload.accessId}/`, {
       method: "DELETE",

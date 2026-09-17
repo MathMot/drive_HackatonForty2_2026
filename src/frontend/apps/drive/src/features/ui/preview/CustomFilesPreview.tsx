@@ -22,8 +22,7 @@ import {
   SignZoneOverlayManager,
 } from "@/features/explorer/components/modals/sign/SignZoneOverlayManager";
 import {
-  useMutationSelfSign,
-  useMutationExecuteSign,
+  useMutationSign,
 } from "@/features/explorer/hooks/useMutationsAccesses";
 import {
   addToast,
@@ -189,8 +188,7 @@ const CustomFilesPreviewRightHeader = ({
   const { user } = useAuth();
   const shareModal = useModal();
   const signModal = useModal();
-  const { mutateAsync: selfSign } = useMutationSelfSign();
-  const { mutateAsync: executeSign } = useMutationExecuteSign();
+  const { mutateAsync: sign } = useMutationSign();
   const router = useRouter();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -203,9 +201,10 @@ const CustomFilesPreviewRightHeader = ({
     if (!signZone) return;
     setIsSubmitting(true);
     try {
-      await selfSign({
+      await sign({
         itemId: currentItem.id,
         zone: signZone,
+        is_self_sign: true,
         suffix: t("sign_modal.sign_file_suffix", "signé"),
       });
       if ((currentItem as any).parentId) {
@@ -229,9 +228,10 @@ const CustomFilesPreviewRightHeader = ({
     if (!signZone) return;
     setIsSubmitting(true);
     try {
-      await executeSign({
+      await sign({
         itemId: currentItem.id,
         zone: signZone,
+        is_self_sign: false,
       });
       router.push("/explorer/items/shared-with-me");
     } catch (err) {

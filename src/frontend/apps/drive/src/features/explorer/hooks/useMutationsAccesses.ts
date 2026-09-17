@@ -38,23 +38,6 @@ export const useMutationBatchShare = () => {
   });
 };
 
-export const useMutationBatchSign = () => {
-  const driver = getDriver();
-  const onSuccessAccessOrInvitation = useOnSuccessAccessOrInvitationMutation();
-  return useMutation({
-    // Errors are displayed inside the import modal, not by the global toast
-    meta: { noGlobalError: true },
-    mutationFn: (...payload: Parameters<typeof driver.batchSign>) => {
-      return driver.batchSign(...payload);
-    },
-    onSuccess: (_, variables) => {
-      // A batch can create both accesses and invitations
-      onSuccessAccessOrInvitation(variables.itemId, false);
-      onSuccessAccessOrInvitation(variables.itemId, true);
-    },
-  });
-};
-
 export const useMutationCreateInvitation = () => {
   const driver = getDriver();
   const onSuccessAccessOrInvitation = useOnSuccessAccessOrInvitationMutation();
@@ -122,23 +105,25 @@ export const useMutationDeleteInvitation = () => {
   });
 };
 
-export const useMutationSelfSign = () => {
+export const useMutationSign = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({
       itemId,
       zone,
+      is_self_sign = false,
       suffix,
     }: {
       itemId: string;
       zone: any;
+      is_self_sign?: boolean;
       suffix?: string;
     }) => {
       const response = await fetchAPI(
-        `items/${itemId}/self-sign/`,
+        `items/${itemId}/sign/`,
         {
           method: "POST",
-          body: JSON.stringify({ zone, suffix, is_self_sign: true }),
+          body: JSON.stringify({ zone, is_self_sign, suffix }),
         },
       );
       return response.json();
@@ -177,30 +162,3 @@ export const useMutationRequestSign = () => {
     },
   });
 };
-
-export const useMutationExecuteSign = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async ({
-      itemId,
-      zone,
-    }: {
-      itemId: string;
-      zone?: any;
-    }) => {
-      const response = await fetchAPI(
-        `items/${itemId}/execute-sign/`,
-        {
-          method: "POST",
-          body: JSON.stringify({ zone }),
-        },
-      );
-      return response.json();
-    },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["items"] });
-      queryClient.invalidateQueries({ queryKey: ["item", variables.itemId] });
-    },
-  });
-};
-

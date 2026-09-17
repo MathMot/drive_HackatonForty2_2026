@@ -145,7 +145,6 @@ export abstract class Driver {
   abstract getItemAccesses(itemId: string): Promise<Access[]>;
   abstract createAccess(data: DTOCreateAccess): Promise<void>;
   abstract batchShare(payload: DTOBatchShare): Promise<void>;
-  abstract batchSign(payload: DTOBatchSign): Promise<void>;
 
   abstract updateAccess(payload: DTOUpdateAccess): Promise<Access | void>;
   abstract updateLinkConfiguration(
