@@ -9,7 +9,7 @@ import uuid
 from io import BytesIO
 from urllib.parse import quote, unquote, urlparse
 from django.core.files.storage import default_storage
-
+from ..authentication.padest import _sign_pdf_file
 
 from django.conf import settings
 from django.contrib.postgres.search import TrigramSimilarity
@@ -2112,14 +2112,27 @@ class ItemViewSet(
         if not is_pdf:                                                                                                                    
             raise ValidationError({"detail": "Only PDF documents can be signed."})                                                        
 
-        item if isinstance(item, models.Item) else None
+        #For code autocompletion
+        #item if isinstance(item, models.Item) else None
+
+        #Duplicate the current file by a sync way, and renaming it to name_signed.pdf
         duplicated = self.duplicate_sync(request.user, item.filename.split(".pdf")[0] + "_signed"+".pdf")
 
+        #Gets the item from the database to ensure that it's properly duplicated and getting its new path
         new_item = models.Item.objects.get(id = duplicated.id)
 
-        #print(f"OK GOOD duplicated the file which is now : {new_item.title} : {new_item.id}")
-        # utiliser le code de Yassir et Nicolas pour signer **electroniquement** seulement le pdf
-        #PDF accessible via default_storage.open(file.id)
+        pdf_bytes = None
+        returned_bytes = None
+        with default_storage.open(new_item.file_key, "rb") as f:
+            pdf_bytes = f.read()
+            returned_bytes =  _sign_pdf_file(pdf_bytes,"name" + timezone.now().__str__())
+            f.close()
+
+        default_storage.connection.meta.client.put_object(
+        Bucket=default_storage.bucket_name,
+        Key=new_item.file_key,
+        Body=returned_bytes,
+        ContentType="application/pdf",)
 
         serializer = serializers.SelfSignSerializer(data=request.data)                                                                    
         serializer.is_valid(raise_exception=True)                                                                                         
