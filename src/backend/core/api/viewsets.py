@@ -2090,6 +2090,7 @@ class ItemViewSet(
                 continue
             sign = models.Signatory(file_hash = "NoHash", file = item, user = found_user, eIDAS = "", eIDAS_lvl_1 = 1, eIDAS_lvl_2 = 1, date_signed = None, is_signed = False)
             sign.save()
+        
         serializer = self.get_serializer(item)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
