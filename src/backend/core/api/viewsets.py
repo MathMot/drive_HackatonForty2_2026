@@ -72,6 +72,7 @@ from core.services.search_indexers import (
 from core.storage.cache import invalidate_storage_used_cache
 from core.tasks.item import duplicate_file,duplicate_file_sync_pdf, process_item_purge, rename_file
 from core.utils.analytics import posthog_capture
+from core.utils.pdf_stamp import stamp_pdf
 from wopi.conversion import exceptions as conversion_exceptions
 from wopi.conversion.services import prepare_conversion
 from wopi.services import access as access_service
@@ -2094,40 +2095,65 @@ class ItemViewSet(
         serializer = self.get_serializer(item)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    @action(detail=True, methods=["post"], url_path="self-sign")                                                                          
-    def self_sign(self, request, *args, **kwargs):                                                                                        
-        """                                                                                                                               
-        Reception and processing of self-signing requests.                                                                                
-        Endpoint: POST /api/v1.0/items/<id>/self-sign/                                                                                    
-        """                                                                                                                               
-        # 1. Fetch item and verify permissions                                                                                            
-        item = self.get_object()                                                                                                          
-                                                                                                                                          
-        # Check that the file is actually a PDF                                                                                           
-        is_pdf = (                                                                                                                        
-            item.mimetype == "application/pdf"                                                                                            
-            or (item.filename and item.filename.lower().endswith(".pdf"))                                                                 
-            or (item.title and item.title.lower().endswith(".pdf"))                                                                       
-        )                                                                                                                                 
-        if not is_pdf:                                                                                                                    
-            raise ValidationError({"detail": "Only PDF documents can be signed."})                                                        
+    @drf.decorators.action(detail=True, methods=["post"], url_path="sign")
+    def sign(self, request, *args, **kwargs):
+        """
+        Unified endpoint for document signing (both self-signing and recipient signing).
+        Endpoint: POST /api/v1.0/items/<id>/sign/
+        """
+        item = self.get_object()
 
-        item if isinstance(item, models.Item) else None
-        duplicated = self.duplicate_sync(request.user, item.filename.split(".pdf")[0] + "_signed"+".pdf")
+        # 1. Check that the file is actually a PDF
+        is_pdf = (
+            item.mimetype == "application/pdf"
+            or (item.filename and item.filename.lower().endswith(".pdf"))
+            or (item.title and item.title.lower().endswith(".pdf"))
+        )
+        if not is_pdf:
+            raise ValidationError({"detail": "Only PDF documents can be signed."})
 
-        new_item = models.Item.objects.get(id = duplicated.id)
-
-        #print(f"OK GOOD duplicated the file which is now : {new_item.title} : {new_item.id}")
-        # utiliser le code de Yassir et Nicolas pour signer **electroniquement** seulement le pdf
-        #PDF accessible via default_storage.open(file.id)
-
-        serializer = serializers.SelfSignSerializer(data=request.data)                                                                    
-        serializer.is_valid(raise_exception=True)                                                                                         
+        # 2. Validate payload
+        serializer = serializers.SignSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
+
+        zone = validated_data.get("zone", {})
+        is_self_sign = validated_data.get("is_self_sign", False)
+        suffix = validated_data.get("suffix", "signed")
+
+        # 3. Lifecycle / workflow branch
+        if is_self_sign:
+            # Self-signing workflow: duplicate the item so original is untouched
+            name_root = (item.filename or item.title or "document").split(".pdf")[0]
+            duplicated = self.duplicate_sync(request.user, f"{name_root}_{suffix}.pdf")
+            target_item = models.Item.objects.get(id=duplicated.id)
+
+        else:
+            # Recipient signing workflow: mark the signatory as signed
+            models.Signatory.objects.filter(file=item, user=request.user).update(
+                is_signed=True,
+                date_signed=timezone.now(),
+            )
+            target_item = item
+
+        # 4. Stamp PDF (draw outline rectangle at target zone)
+        with default_storage.open(target_item.file_key, "rb") as f:
+            original_pdf_bytes = f.read()
+
+        stamped_bytes = stamp_pdf(original_pdf_bytes, zone, user=request.user)
+
+        if default_storage.exists(target_item.file_key):
+            default_storage.delete(target_item.file_key)
+        default_storage.save(target_item.file_key, BytesIO(stamped_bytes))
+
+        target_item.size = len(stamped_bytes)
+        target_item.save(update_fields=["size", "updated_at"])
+
         response_serializer = serializers.ItemSerializer(
-            item, context=self.get_serializer_context()
+            target_item, context=self.get_serializer_context()
         )
         return Response(response_serializer.data, status=status.HTTP_200_OK)
+
 
 # Declare the schema statically because `get_serializer_class` depends on
 # `self.item`, which reads `self.kwargs["resource_id"]` — unavailable during
