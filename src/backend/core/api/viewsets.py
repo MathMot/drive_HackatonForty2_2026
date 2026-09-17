@@ -2565,35 +2565,22 @@ class ShowSignaturesView(drf.views.APIView):
         Returns list of signature records.
         """
         
-        # 
-        dict_settings = [
-            {
-                "prenom": "Jean",
-                "nom": "Dupont",
-                "is_signed": True,
-                "signature_date": "2024-03-15",
-                "eIDAS_lvl_1": True,
-                "eIDAS_lvl_2": True
-            },
-            {
-                "prenom": "Marie",
-                "nom": "Martin",
-                "is_signed": False,
-                "signature_date": None,
-                "eIDAS_lvl_1": None,
-                "eIDAS_lvl_2": None
-            },
-            {
-                "prenom": "Pierre",
-                "nom": "Bernard",
-                "is_signed": True,
-                "signature_date": "2024-02-28",
-                "eIDAS_lvl_1": True,
-                "eIDAS_lvl_2": False
-            }
-        ]
+        file = models.Item.objects.get(id=pdf_id)
+        signatories = models.Signatory.objects.filter(file=file).order_by("-date_signed")
 
-        return drf.response.Response(dict_settings)
+        data = []
+
+        for signatory in signatories:
+            data.append({
+                "prenom": signatory.user.short_name,
+                "nom": signatory.user.full_name,
+                "email": signatory.user.email,
+                "is_signed": signatory.is_signed,
+                "signature_date": signatory.date_signed,
+                "eIDAS_lvl_1": True,
+                "eIDAS_lvl_2": True,
+            })
+        return drf.response.Response(data)
 
 class ReconciliationConfirmView(drf.views.APIView):
     """API endpoint to confirm user reconciliation emails.
