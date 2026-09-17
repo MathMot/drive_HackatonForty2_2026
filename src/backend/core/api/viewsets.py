@@ -100,6 +100,71 @@ MEDIA_STORAGE_URL_PATTERN = re.compile(
 )
 # pylint: disable=too-many-ancestors
 
+def duplicate_file_sync(item, creator, title, parent=None):
+    """
+    Duplique un item de type FILE de façon synchrone : le contenu est copié
+    dans le storage avant que la fonction ne retourne, contrairement à
+    `duplicate_file.delay(...)` qui le fait en tâche async.
+
+    À utiliser quand on a besoin du contenu réel tout de suite après
+    (calcul de hash, traitement immédiat), pas pour des gros fichiers
+    appelés depuis une requête HTTP synchrone sans watchdog de timeout.
+
+    :param item: l'Item de type FILE à dupliquer
+    :param creator: le user qui devient créateur du duplicata
+    :param title: titre du duplicata (l'unicité est gérée par create_child)
+    :param parent: dossier cible ; None pour dupliquer à la racine
+    :return: le nouvel Item, avec upload_state=READY si la copie a réussi
+    """
+    if item.type != models.ItemTypeChoices.FILE:
+        raise ValueError("duplicate_file_sync only supports items of type FILE.")
+
+    new_item = models.Item.objects.create_child(
+        creator=creator,
+        link_reach=None if parent else LinkReachChoices.RESTRICTED,
+        parent=parent,
+        title=title,
+        type=models.ItemTypeChoices.FILE,
+        size=item.size,
+        upload_state=models.ItemUploadStateChoices.DUPLICATING,
+        mimetype=item.mimetype,
+        filename=item.filename,
+        description=item.description,
+    )
+
+    if new_item.is_root:
+        models.ItemAccess.objects.create(
+            item=new_item,
+            user=creator,
+            role=models.RoleChoices.OWNER,
+        )
+
+    source_key = item.file_key
+    target_key = new_item.file_key
+    copied = False
+
+    if default_storage.exists(source_key):
+        try:
+            client = default_storage.connection.meta.client
+            client.copy_object(
+                Bucket=default_storage.bucket_name,
+                Key=target_key,
+                CopySource={"Bucket": default_storage.bucket_name, "Key": source_key},
+            )
+        except AttributeError:
+            # Storage non-S3 (filesystem en local/tests) : fallback stream
+            with default_storage.open(source_key, "rb") as source_file:
+                default_storage.save(target_key, source_file)
+        copied = True
+
+    new_item.upload_state = (
+        models.ItemUploadStateChoices.READY
+        if copied
+        else models.ItemUploadStateChoices.PENDING
+    )
+    new_item.save(update_fields=["upload_state", "updated_at"])
+
+    return new_item
 
 class NestedGenericViewSet(viewsets.GenericViewSet):
     """
@@ -1953,39 +2018,61 @@ class ItemViewSet(
         serializer = self.get_serializer(duplicated_item)
         return drf.response.Response(serializer.data, status=drf.status.HTTP_201_CREATED)
 
-
-
-
-#items/${itemId}/request-sign/
-    @action(detail=True, methods=["post"], url_path="request-sign")
+    @drf.decorators.action(detail=True, methods=["post"], url_path="request-sign")
     def request_sign(self, request, *args, **kwargs):
-
-
-#item = l'item en question
-#signers = array qui contient tous les mails
-# ex = ['aze.aze@aze.net', 'mathis.minet@mathis.net']
-
-#avec tous ces mails, tu récupères leurs users, et tu peux créer pour chaque une classe Signataire
-#Link chaque class Signataire
-#Envoie de mail pour chaque user avec descriptif de mdr tu dois signer ça
-    #models.User.objects.get(id=9).email_user()
         item = self.get_object()
-        print("Sent les request")
-        print(f"for the file : {item.filename}")
-        signers = request.data.get("signers",[])
-        print(f"signataires : {signers}")
+        user = request.user
 
+        if item.type != models.ItemTypeChoices.FILE:
+            raise drf.exceptions.ValidationError(
+                {"detail": "Only items of type FILE can be sent for signature."},
+                code="item_request_sign_type_file_only",
+            )
 
+        signers = request.data.get("signers", [])
+        if not isinstance(signers, list) or not signers:
+            raise drf.exceptions.ValidationError(
+                {"signers": "A non-empty list of emails is required."}
+            )
 
+        emails = {email.strip().lower() for email in signers if email and email.strip()}
+        if not emails:
+            raise drf.exceptions.ValidationError(
+                {"signers": "A non-empty list of emails is required."}
+            )
 
+        users = models.User.objects.filter(email__in=emails)
+        users_by_email = {u.email.lower(): u for u in users if u.email}
 
-        serializer = serializers.SelfSignSerializer(data=request.data)                                                                    
-        serializer.is_valid(raise_exception=True)                                                                                         
-        validated_data = serializer.validated_data
-        response_serializer = serializers.ItemSerializer(
-            item, context=self.get_serializer_context()
-        )
-        return Response(response_serializer.data, status=status.HTTP_200_OK)
+        can_upload = get_entitlements_backend().can_upload(user)
+        if not can_upload["result"]:
+            raise drf.exceptions.PermissionDenied(
+                detail=can_upload.get("message", "You do not have permission to upload files."),
+                code=can_upload.get("reason"),
+            )
+
+        sign = models.Signatory(file_hash = "", file = item, user = user, eIDAS = "", eIDAS_lvl_1 = 1, eIDAS_lvl_2 = 1, date_signed = None, is_signed = False)
+        sign.save()
+        
+
+        serializer = self.get_serializer(item)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    # def _notify_signatories(self, item, signatories, sender):
+    #     """Send a signature-request email to every signatory on the given item."""
+    #     sender_name = sender.full_name or sender.email
+    #     for signatory in signatories:
+    #         if not signatory.user or not signatory.user.email:
+    #             continue
+    #         context = {
+    #             "title": _("{name} asks you to sign a document").format(name=sender_name),
+    #             "message": _(
+    #                 "{name} requests your signature on the following item:"
+    #             ).format(name=sender_name),
+    #         }
+    #         subject = _("Signature requested: {title}").format(title=item.title)
+    #         item.send_email(subject, [signatory.user.email], context, signatory.user.language)
+
     @action(detail=True, methods=["post"], url_path="self-sign")                                                                          
     def self_sign(self, request, *args, **kwargs):                                                                                        
         """                                                                                                                               

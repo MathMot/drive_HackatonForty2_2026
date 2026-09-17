@@ -23,7 +23,6 @@ from core.api import utils
 from core.api.fields import SchemaField
 from core.storage import get_storage_compute_backend
 from wopi import utils as wopi_utils
-from rest_framework import serializers
 
 logger = logging.getLogger(__name__)
 
@@ -58,26 +57,17 @@ class UserSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "email", "full_name", "short_name"]
 
-class SignatureSerializer(serializers.ModelSerializer):
+class SignatorySerializer(serializers.ModelSerializer):
         class Meta:
-            model=models.Signature
+            model=models.Signatory
             fields = [
                 "id",
                 "file_hash",
                 "file",
-                "recipients"
-            ]
-
-class ReceivedSerializer(serializers.ModelSerializer):
-        class Meta:
-            model = models.Received
-            fields = [ 
-                "id",
+                "user",
                 "is_signed",
                 "eIDAS_lvl_1",
                 "eIDAS_lvl_2",
-                "name",
-                "surname", 
                 "auth_level",
                 "id_level", 
                 "date_signed"
@@ -538,7 +528,7 @@ class SearchItemSerializer(ListItemSerializer):
 class ItemSerializer(ListItemSerializer):
     """Serialize items with all fields for display in detail views."""
 
-    signature = SignatureSerializer(read_only=True)
+    signature = SignatorySerializer(read_only=True)
     class Meta:
         model = models.Item
         fields = [
@@ -997,17 +987,3 @@ class SDKRelayEventSerializer(serializers.Serializer):
             )
 
         return value
-
-
-class SignZoneSerializer(serializers.Serializer):
-    """Validate normalized coordinates sent by the frontend overlay."""
-    pageIndex = serializers.IntegerField(min_value=0)
-    xPct = serializers.FloatField(min_value=0.0, max_value=100.0)
-    yPct = serializers.FloatField(min_value=0.0, max_value=100.0)
-    widthPct = serializers.FloatField(min_value=1.0, max_value=100.0)
-    heightPct = serializers.FloatField(min_value=1.0, max_value=100.0)
-class SelfSignSerializer(serializers.Serializer):
-    """Validate payload for POST items/{id}/self-sign/."""
-    zone = SignZoneSerializer(required=True)
-    suffix = serializers.CharField(max_length=50, required=False, default="signé")
-    is_self_sign = serializers.BooleanField(required=False, default=True)
