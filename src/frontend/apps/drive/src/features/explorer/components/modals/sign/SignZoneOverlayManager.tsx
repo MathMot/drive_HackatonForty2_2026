@@ -93,17 +93,17 @@ const resizeHandleStyle: React.CSSProperties = {
   background: "#000091",
   border: "2px solid #ffffff",
   cursor: "nwse-resize",
-  borderRadius: "50%",
+  borderRadius: "25%",
   boxShadow: "0 1px 4px rgba(0,0,0,0.4)",
   zIndex: 2,
 };
 
-const MIN_WIDTH_PCT = 23;
-const MAX_WIDTH_PCT = 53;
-const MIN_HEIGHT_PCT = 8;
-const MAX_HEIGHT_PCT = 36;
-const DEFAULT_WIDTH_PCT = 28;
-const DEFAULT_HEIGHT_PCT = 11;
+const MIN_WIDTH_PCT = 15;
+const MAX_WIDTH_PCT = 60;
+const MIN_HEIGHT_PCT = 6;
+const MAX_HEIGHT_PCT = 30;
+const DEFAULT_WIDTH_PCT = 25;
+const DEFAULT_HEIGHT_PCT = 9;
 
 export interface SignZoneOverlayManagerProps {
   isSignMode: boolean;
@@ -472,8 +472,8 @@ export const SignZoneOverlayManager = ({
               const zonePixelW = (currentZone.widthPct / 100) * pageWidth;
               const zonePixelH = (currentZone.heightPct / 100) * pageHeight;
               const scale = Math.max(
-                0.55,
-                Math.min(1.8, Math.min(zonePixelW / 224, zonePixelH / 120)),
+                0.4,
+                Math.min(2.3, Math.min(zonePixelW / 215, zonePixelH / 107)),
               );
               const handleSize = Math.max(16, Math.min(32, Math.round(RESIZE_HANDLE_SIZE * scale)));
 
@@ -494,7 +494,7 @@ export const SignZoneOverlayManager = ({
                     flexDirection: "column",
                     justifyContent: "center",
                     alignItems: "center",
-                    borderRadius: "4px",
+                    borderRadius: "1px",
                     userSelect: "none",
                     boxSizing: "border-box",
                     padding: "4px 8px",
@@ -518,7 +518,7 @@ export const SignZoneOverlayManager = ({
                     {currentZone.signType === SignType.NoStamp ? (
                       <div
                         style={{
-                          fontSize: `${0.75 * scale}rem`,
+                          fontSize: `${scale}rem`,
                           fontStyle: "italic",
                           opacity: 0.6,
                         }}
@@ -529,7 +529,7 @@ export const SignZoneOverlayManager = ({
                       <>
                         <div
                           style={{
-                            fontSize: `${0.85 * scale}rem`,
+                            fontSize: `${scale}rem`,
                             fontWeight: "bold",
                             overflow: "hidden",
                             textOverflow: "ellipsis",
@@ -545,9 +545,9 @@ export const SignZoneOverlayManager = ({
                         </div>
                         <div
                           style={{
-                            fontSize: `${0.68 * scale}rem`,
+                            fontSize: `${scale}rem`,
                             opacity: 0.8,
-                            marginTop: `${Math.round(2 * scale)}px`,
+                            marginTop: `${Math.round(1.5 * scale)}px`,
                           }}
                         >
                           {formattedDate}
