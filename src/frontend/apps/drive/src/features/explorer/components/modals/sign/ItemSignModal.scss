@@ -61,19 +61,70 @@
 
 .sign-modal-input-row {
   display: flex;
-  gap: var(--c--globals--spacings--xs);
-  align-items: flex-start;
+  width: 100%;
+  align-items: center;
 }
 
 .sign-modal-input-wrapper {
   position: relative;
   flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.sign-modal-search-icon {
+  position: absolute;
+  left: 12px;
+  font-size: 20px;
+  color: var(--c--contextuals--content--semantic--neutral--tertiary, #666);
+  pointer-events: none;
+}
+
+.sign-modal-search-spinner {
+  position: absolute;
+  left: 12px;
+  font-size: 20px;
+  color: var(--c--contextuals--content--semantic--brand--primary, #000091);
+  animation: sign-modal-spin 1s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes sign-modal-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.sign-modal-clear-btn {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  padding: 2px;
+  cursor: pointer;
+  color: var(--c--contextuals--content--semantic--neutral--tertiary, #999);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: color 0.15s ease;
+
+  &:hover {
+    color: var(--c--contextuals--content--semantic--neutral--primary, #1e1e1e);
+  }
+
+  .material-icons {
+    font-size: 18px;
+  }
 }
 
 .sign-modal-input {
   width: 100%;
   height: 40px;
-  padding: 0 var(--c--globals--spacings--sm);
+  padding: 0 36px 0 38px;
   border: 1px solid var(--c--contextuals--border--surface--secondary, #ccc);
   border-radius: var(--c--globals--spacings--xs, 4px);
   font-size: var(--c--globals--font--sizes--sm, 14px);
@@ -99,12 +150,13 @@
   border-radius: var(--c--globals--spacings--xs, 4px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   z-index: 100;
-  max-height: 180px;
+  max-height: 220px;
   overflow-y: auto;
 
   &__item {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: var(--c--globals--spacings--xs);
     padding: var(--c--globals--spacings--xs) var(--c--globals--spacings--sm);
     cursor: pointer;
@@ -115,28 +167,36 @@
       background-color: var(--c--contextuals--background--semantic--contextual--primary, #f0f4ff);
     }
 
-    &--loading {
-      color: var(--c--contextuals--content--semantic--neutral--tertiary, #999);
+    &--loading,
+    &--empty {
+      color: var(--c--contextuals--content--semantic--neutral--tertiary, #666);
       cursor: default;
+      justify-content: flex-start;
+
+      &:hover {
+        background-color: transparent;
+      }
     }
 
     .material-icons {
       font-size: 18px;
-      color: var(--c--contextuals--content--semantic--neutral--tertiary, #999);
+    }
+
+    .c__user-row {
+      min-width: 0;
+      flex: 1;
     }
   }
 
-  &__user-info {
-    display: flex;
-    flex-direction: column;
+  &__add-icon {
+    font-size: 20px;
+    color: var(--c--contextuals--content--semantic--brand--primary, #000091);
+    flex-shrink: 0;
+    opacity: 0.7;
+    transition: opacity 0.15s ease;
 
-    strong {
-      color: var(--c--contextuals--content--semantic--neutral--primary, #1e1e1e);
-    }
-
-    small {
-      color: var(--c--contextuals--content--semantic--neutral--secondary, #666);
-      font-size: 11px;
+    .sign-modal-suggestions__item:hover & {
+      opacity: 1;
     }
   }
 }
@@ -198,6 +258,12 @@
     align-items: center;
     gap: var(--c--globals--spacings--xs);
     min-width: 0;
+    flex: 1;
+
+    .c__user-row {
+      min-width: 0;
+      flex: 1;
+    }
   }
 
   &__avatar {

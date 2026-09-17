@@ -3,9 +3,10 @@ import {
   Modal,
   ModalSize,
   removeFileExtension,
+  UserRow,
 } from "@gouvfr-lasuite/ui-components";
 import { useRouter } from "next/router";
-import { KeyboardEvent, useMemo, useState } from "react";
+import { KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Item, User } from "@/features/drivers/types";
 import { useAuth } from "@/features/auth/Auth";
@@ -28,15 +29,41 @@ export const ItemSignModal = ({ isOpen, onClose, item }: ItemSignModalProps) => 
   const { user: currentUser } = useAuth();
   const { mutateAsync: requestSign, isPending: isSubmitting } = useMutationRequestSign();
 
-  const [signers, setSigners] = useState<string[]>([]);
+  const [signers, setSigners] = useState<User[]>([]);
   const [inputValue, setInputValue] = useState("");
+  const [queryValue, setQueryValue] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
 
-  // Search registered users as the user types
+  const onSearch = (search: string) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    if (search.trim() === "") {
+      setQueryValue("");
+      return;
+    }
+
+    timeoutRef.current = setTimeout(() => {
+      setQueryValue(search.trim());
+    }, 300);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Search registered users with debounce
   const { data: searchResults, isLoading: isSearching } = useUsers(
-    { q: inputValue },
+    { q: queryValue },
     {
-      enabled: inputValue.trim().length >= 2,
+      enabled: queryValue !== undefined && queryValue !== "",
       placeholderData: (prev: User[] | undefined) => prev,
     },
   );
@@ -44,33 +71,55 @@ export const ItemSignModal = ({ isOpen, onClose, item }: ItemSignModalProps) => 
   const filteredSuggestions = useMemo(() => {
     if (!searchResults) return [];
     return searchResults.filter(
-      (u: User) => !signers.includes(u.email.toLowerCase()) && u.email.toLowerCase() !== currentUser?.email?.toLowerCase(),
+      (u: User) =>
+        !signers.some(
+          (s) => s.id === u.id || s.email.toLowerCase() === u.email.toLowerCase(),
+        ) &&
+        u.email.toLowerCase() !== currentUser?.email?.toLowerCase(),
     );
   }, [searchResults, signers, currentUser]);
 
-  const addSigner = (emailToAdd: string) => {
-    const trimmed = emailToAdd.trim().toLowerCase();
-    if (!trimmed) return;
-    // Simple email format check
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(trimmed)) {
-      return;
-    }
-    if (!signers.includes(trimmed)) {
-      setSigners((prev) => [...prev, trimmed]);
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(event.target as Node)
+      ) {
+        setShowSuggestions(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  const addSigner = (user: User) => {
+    if (
+      !signers.some(
+        (s) => s.id === user.id || s.email.toLowerCase() === user.email.toLowerCase(),
+      )
+    ) {
+      setSigners((prev) => [...prev, user]);
     }
     setInputValue("");
+    setQueryValue("");
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
     setShowSuggestions(false);
   };
 
-  const removeSigner = (emailToRemove: string) => {
-    setSigners((prev) => prev.filter((e) => e !== emailToRemove));
+  const removeSigner = (userId: string) => {
+    setSigners((prev) => prev.filter((s) => s.id !== userId));
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
+    if (e.key === "Escape") {
+      setShowSuggestions(false);
+    } else if (e.key === "Enter") {
       e.preventDefault();
-      addSigner(inputValue);
     }
   };
 
@@ -84,7 +133,7 @@ export const ItemSignModal = ({ isOpen, onClose, item }: ItemSignModalProps) => 
     try {
       await requestSign({
         itemId: item.id,
-        signers,
+        signers: signers.map((s) => s.email),
         suffix: t("sign_modal.sign_file_suffix", "signé"),
       });
       onClose();
@@ -152,49 +201,72 @@ export const ItemSignModal = ({ isOpen, onClose, item }: ItemSignModalProps) => 
               {t("sign_modal.request_section_title", "Inviter des personnes à signer ce document")}
             </span>
             <p className="sign-modal-section__desc">
-              {t("sign_modal.request_section_desc", "Renseignez les adresses email des personnes qui doivent signer :")}
+              {t(
+                "sign_modal.request_section_desc",
+                "Recherchez par nom ou par adresse e-mail les personnes qui doivent signer :",
+              )}
             </p>
           </div>
 
-          {/* Email input + Add button */}
+          {/* Search bar matching share modal */}
           <div className="sign-modal-input-row">
-            <div className="sign-modal-input-wrapper">
+            <div className="sign-modal-input-wrapper" ref={searchContainerRef}>
+              {isSearching ? (
+                <span className="material-icons sign-modal-search-spinner">sync</span>
+              ) : (
+                <span className="material-icons sign-modal-search-icon">search</span>
+              )}
               <input
-                type="email"
+                type="text"
                 className="sign-modal-input"
-                placeholder={t("sign_modal.input_placeholder", "Adresse email (ex : nom@exemple.fr)")}
+                placeholder={t(
+                  "sign_modal.input_placeholder",
+                  "Rechercher un nom ou une adresse e-mail",
+                )}
                 value={inputValue}
                 onChange={(e) => {
-                  setInputValue(e.target.value);
+                  const val = e.target.value;
+                  setInputValue(val);
+                  onSearch(val);
                   setShowSuggestions(true);
                 }}
                 onKeyDown={handleKeyDown}
-                onFocus={() => setShowSuggestions(true)}
+                onFocus={() => {
+                  if (inputValue.trim()) {
+                    setShowSuggestions(true);
+                  }
+                }}
               />
+              {inputValue && (
+                <button
+                  type="button"
+                  className="sign-modal-clear-btn"
+                  onClick={() => {
+                    setInputValue("");
+                    setQueryValue("");
+                    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+                    setShowSuggestions(false);
+                  }}
+                  title={t("sign_modal.clear_search", "Effacer")}
+                  aria-label={t("sign_modal.clear_search", "Effacer")}
+                >
+                  <span className="material-icons">close</span>
+                </button>
+              )}
 
               {/* Autocomplete suggestions dropdown */}
-              {showSuggestions && inputValue.trim().length >= 2 && (
+              {showSuggestions && inputValue.trim().length > 0 && (
                 <div className="sign-modal-suggestions">
                   {isSearching && (
                     <div className="sign-modal-suggestions__item sign-modal-suggestions__item--loading">
-                      Recherche...
+                      <span className="material-icons sign-modal-suggestions__spinner">sync</span>
+                      <span>{t("sign_modal.searching", "Recherche en cours...")}</span>
                     </div>
                   )}
                   {!isSearching && filteredSuggestions.length === 0 && (
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      className="sign-modal-suggestions__item"
-                      onClick={() => addSigner(inputValue)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          addSigner(inputValue);
-                        }
-                      }}
-                    >
-                      <span className="material-icons">mail</span>
-                      <span>Ajouter &quot;{inputValue.trim()}&quot;</span>
+                    <div className="sign-modal-suggestions__item sign-modal-suggestions__item--empty">
+                      <span className="material-icons">info</span>
+                      <span>{t("sign_modal.no_results", "Aucun utilisateur trouvé")}</span>
                     </div>
                   )}
                   {filteredSuggestions.map((user: User) => (
@@ -203,33 +275,21 @@ export const ItemSignModal = ({ isOpen, onClose, item }: ItemSignModalProps) => 
                       role="button"
                       tabIndex={0}
                       className="sign-modal-suggestions__item"
-                      onClick={() => addSigner(user.email)}
+                      onClick={() => addSigner(user)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {
                           e.preventDefault();
-                          addSigner(user.email);
+                          addSigner(user);
                         }
                       }}
                     >
-                      <span className="material-icons">person</span>
-                      <div className="sign-modal-suggestions__user-info">
-                        <strong>{user.full_name || user.email}</strong>
-                        {user.full_name && <small>{user.email}</small>}
-                      </div>
+                      <UserRow fullName={user.full_name} email={user.email} />
+                      <span className="sign-modal-suggestions__add-icon material-icons">add</span>
                     </div>
                   ))}
                 </div>
               )}
             </div>
-
-            <Button
-              variant="secondary"
-              color="brand"
-              onClick={() => addSigner(inputValue)}
-              disabled={!inputValue.trim()}
-            >
-              {t("sign_modal.add_button", "Ajouter")}
-            </Button>
           </div>
 
           {/* Added Signers List */}
@@ -247,19 +307,16 @@ export const ItemSignModal = ({ isOpen, onClose, item }: ItemSignModalProps) => 
                 <p>
                   {t(
                     "sign_modal.no_signers",
-                    "Aucun signataire ajouté. Saisissez une adresse email ci-dessus et cliquez sur Ajouter.",
+                    "Aucun signataire ajouté. Recherchez un utilisateur ci-dessus pour l'ajouter.",
                   )}
                 </p>
               </div>
             ) : (
               <div className="sign-modal-signers__list">
-                {signers.map((email) => (
-                  <div key={email} className="sign-modal-signer-item">
+                {signers.map((signer) => (
+                  <div key={signer.id} className="sign-modal-signer-item">
                     <div className="sign-modal-signer-item__info">
-                      <span className="material-icons sign-modal-signer-item__avatar">
-                        account_circle
-                      </span>
-                      <span className="sign-modal-signer-item__email">{email}</span>
+                      <UserRow fullName={signer.full_name} email={signer.email} />
                     </div>
                     <div className="sign-modal-signer-item__actions">
                       <span className="sign-modal-role-badge">
@@ -268,7 +325,7 @@ export const ItemSignModal = ({ isOpen, onClose, item }: ItemSignModalProps) => 
                       <button
                         type="button"
                         className="sign-modal-remove-btn"
-                        onClick={() => removeSigner(email)}
+                        onClick={() => removeSigner(signer.id)}
                         title={t("sign_modal.remove_signer", "Supprimer")}
                         aria-label={t("sign_modal.remove_signer", "Supprimer")}
                       >

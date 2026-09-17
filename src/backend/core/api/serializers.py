@@ -987,3 +987,17 @@ class SDKRelayEventSerializer(serializers.Serializer):
             )
 
         return value
+
+class SignZoneSerializer(serializers.Serializer):
+    """Validate normalized coordinates sent by the frontend overlay."""
+    pageIndex = serializers.IntegerField(min_value=0)
+    xPct = serializers.FloatField(min_value=0.0, max_value=100.0)
+    yPct = serializers.FloatField(min_value=0.0, max_value=100.0)
+    widthPct = serializers.FloatField(min_value=1.0, max_value=100.0)
+    heightPct = serializers.FloatField(min_value=1.0, max_value=100.0)
+
+class SelfSignSerializer(serializers.Serializer):
+    """Validate payload for POST items/{id}/self-sign/."""
+    zone = SignZoneSerializer(required=True)
+    suffix = serializers.CharField(max_length=50, required=False, default="signé")
+    is_self_sign = serializers.BooleanField(required=False, default=True)
