@@ -119,6 +119,7 @@ export type Item = {
     upload_ended: boolean;
     convert?: boolean;
   };
+  is_signed: boolean,
   policy?: string;
 };
 
