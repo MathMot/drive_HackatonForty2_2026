@@ -732,9 +732,11 @@ name = "drive"
 version = "0.22.0"
 source = { editable = "." }
 dependencies = [
+    { name = "asn1crypto" },
     { name = "boto3" },
     { name = "brotli" },
     { name = "celery", extra = ["redis"] },
+    { name = "cryptography" },
     { name = "defusedxml" },
     { name = "dj-database-url" },
     { name = "django" },
@@ -761,6 +763,7 @@ dependencies = [
     { name = "markdown" },
     { name = "mozilla-django-oidc" },
     { name = "nested-multipart-parser" },
+    { name = "pillow" },
     { name = "posthog" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pydantic" },
@@ -800,9 +803,11 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "asn1crypto", specifier = "==1.5.1" },
     { name = "boto3", specifier = "==1.42.91" },
     { name = "brotli", specifier = "==1.2.0" },
     { name = "celery", extras = ["redis"], specifier = "==5.6.3" },
+    { name = "cryptography", specifier = "==50.0.0" },
     { name = "defusedxml", specifier = "==0.7.1" },
     { name = "dj-database-url", specifier = "==3.1.2" },
     { name = "django", specifier = "==5.2.16" },
@@ -835,6 +840,7 @@ requires-dist = [
     { name = "markdown", specifier = "==3.10.2" },
     { name = "mozilla-django-oidc", specifier = "<5.0.0" },
     { name = "nested-multipart-parser", specifier = "==1.6.0" },
+    { name = "pillow", specifier = "==12.3.0" },
     { name = "posthog", specifier = "==7.12.0" },
     { name = "psycopg", extras = ["binary"], specifier = "==3.3.3" },
     { name = "pydantic", specifier = "==2.13.2" },
