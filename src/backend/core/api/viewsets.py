@@ -1,6 +1,7 @@
 """API endpoints"""
 # pylint: disable=too-many-lines
 
+from zoneinfo import ZoneInfo
 import json
 import logging
 import os
@@ -2177,6 +2178,7 @@ class ItemViewSet(
 
             signatory =  models.Signatory.objects.get(file = file, user = user)
             signatory.is_signed = True
+            signatory.date_signed = timezone.now()
             signatory.save()
         except Exception as e:
             pass
@@ -2213,7 +2215,7 @@ class ItemViewSet(
             response_serializer = serializers.ItemSerializer(
                 item, context=self.get_serializer_context()
             )
-            return Response(response_serializer.data, status=status.HTTP_200_OK)
+            return Response({"signed":1,"item":response_serializer.data}, status=status.HTTP_200_OK)
         else:
             #Couldn't sign because the user already signed
             serializer = serializers.SelfSignSerializer(data=request.data)                                                                    
@@ -2222,7 +2224,7 @@ class ItemViewSet(
             response_serializer = serializers.ItemSerializer(
                 item, context=self.get_serializer_context()
             )
-            return Response(response_serializer.data, status=status.HTTP_200_OK)
+            return Response({"signed":0,"item":response_serializer.data}, status=status.HTTP_200_OK)
 
 # Declare the schema statically because `get_serializer_class` depends on
 # `self.item`, which reads `self.kwargs["resource_id"]` — unavailable during
@@ -2653,12 +2655,16 @@ class ShowSignaturesView(drf.views.APIView):
         data = []
 
         for signatory in signatories:
+
+            date_signed = ""
+            if signatory.date_signed is not None:
+                date_signed = signatory.date_signed.astimezone(ZoneInfo("Europe/Paris")).strftime("%d/%m/%Y %H:%M:%S")
             data.append({
                 "prenom": signatory.user.short_name,
-                "nom": signatory.user.full_name,
+                "nom": signatory.user.full_name.split(" ")[1],
                 "email": signatory.user.email,
                 "is_signed": signatory.is_signed,
-                "signature_date": signatory.date_signed,
+                "signature_date": date_signed,
                 "eIDAS_lvl_1": True,
                 "eIDAS_lvl_2": True,
             })

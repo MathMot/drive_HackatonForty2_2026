@@ -145,29 +145,36 @@ export const useMutationSelfSign = () => {
         },
       );
 
-      if (response.status == 406){
-              
-            addToast(
-              <ToasterItem type="error">
-                  <span className="material-icons">draw</span>
-                  <span>Impossible de signer ce document : Vous l'avez déjà signé.</span>
-              </ToasterItem>,
-              );
-            }else if (response.status == 200){
-                    addToast(
-              <ToasterItem type="info">
-                  <span className="material-icons">draw</span>
-                  <span>Document signé avec succès !</span>
-              </ToasterItem>,
-              );
-            }
+
       return response.json();
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (data, variables) => {
+      if (data.signed == 0) {
+      addToast(
+        <ToasterItem type="info">
+            <span className="material-icons">draw</span>
+            <span>Signature réussie !</span>
+        </ToasterItem>,
+        );
+      } else {
+      addToast(
+        <ToasterItem type="error">
+            <span className="material-icons">draw</span>
+            <span>Impossible de signer le document : Vous avez déjà signé...</span>
+        </ToasterItem>,
+        );
+      }
       queryClient.invalidateQueries({ queryKey: ["items"] });
       queryClient.invalidateQueries({ queryKey: ["item", variables.itemId] });
     },
+
+    
+
+    
   });
+
+  
+  
 };
 
 export const useMutationExecuteSign = () => {

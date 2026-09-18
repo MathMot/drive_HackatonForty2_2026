@@ -89,7 +89,7 @@ export const SignatureInformationModal = ({
           isOpen={isOpen}
           onClose={onClose}
           title="Signatures du document"
-          size={ModalSize.MEDIUM}
+          size={ModalSize.EXTRA_LARGE}
           rightActions={
               <Button variant="bordered" onClick={onClose}>
                   Fermer

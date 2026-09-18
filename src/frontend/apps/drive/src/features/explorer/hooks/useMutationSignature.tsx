@@ -33,7 +33,7 @@ export const useMutationRequestSign = () => {
       addToast(
         <ToasterItem type="info">
             <span className="material-icons">draw</span>
-            <span>Le document a été envoyé</span>
+            <span>Demandes de signature envoyées !</span>
         </ToasterItem>,
         );
     },
