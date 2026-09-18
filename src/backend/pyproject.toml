@@ -67,6 +67,9 @@ dependencies = [
     "pyHanko==0.37.0",
     "pypdf==6.19.0",
     "reportlab==5.0.1",
+    "pillow==12.3.0",
+    "cryptography==50.0.0",
+    "asn1crypto==1.5.1",
 ]
 
 [project.urls]

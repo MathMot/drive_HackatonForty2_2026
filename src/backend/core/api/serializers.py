@@ -995,6 +995,9 @@ class SignZoneSerializer(serializers.Serializer):
     yPct = serializers.FloatField(min_value=0.0, max_value=100.0)
     widthPct = serializers.FloatField(min_value=1.0, max_value=100.0)
     heightPct = serializers.FloatField(min_value=1.0, max_value=100.0)
+    signType = serializers.IntegerField(required=False, default=1)
+    imageUrl = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    image = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
 class SelfSignSerializer(serializers.Serializer):
     """Validate payload for POST items/{id}/self-sign/."""
