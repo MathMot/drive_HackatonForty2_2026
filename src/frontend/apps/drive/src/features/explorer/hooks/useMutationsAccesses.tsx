@@ -3,7 +3,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchAPI } from "@/features/api/fetchApi";
 import { APIError } from "@/features/api/APIError";
 import { useOnSuccessAccessOrInvitationMutation } from "./useRefreshItems";
-
+import { addToast } from "@/features/ui/components/toaster/Toaster";
+import { ToasterItem } from "@/features/ui/components/toaster/Toaster";
 
 
 // ============================================================================
@@ -143,6 +144,23 @@ export const useMutationSelfSign = () => {
           body: JSON.stringify({ zone, suffix, is_self_sign: true }),
         },
       );
+
+      if (response.status == 406){
+              
+            addToast(
+              <ToasterItem type="error">
+                  <span className="material-icons">draw</span>
+                  <span>Impossible de signer ce document : Vous l'avez déjà signé.</span>
+              </ToasterItem>,
+              );
+            }else if (response.status == 200){
+                    addToast(
+              <ToasterItem type="info">
+                  <span className="material-icons">draw</span>
+                  <span>Document signé avec succès !</span>
+              </ToasterItem>,
+              );
+            }
       return response.json();
     },
     onSuccess: (_, variables) => {
@@ -163,7 +181,7 @@ export const useMutationExecuteSign = () => {
       zone?: any;
     }) => {
       const response = await fetchAPI(
-        `items/${itemId}/execute-sign/`,
+        `items/${itemId}/self-sign/`,
         {
           method: "POST",
           body: JSON.stringify({ zone }),

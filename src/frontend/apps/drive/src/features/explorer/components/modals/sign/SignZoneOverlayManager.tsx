@@ -1,15 +1,86 @@
+import { Filter, FilterOption } from "@gouvfr-lasuite/ui-components";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
 // Store coordinates as percentages so they scale when the PDF zooms
+export enum SignType {
+  NoStamp,
+  FullName,
+  Initials,
+  Mister,
+  Missus,
+  Doctor,
+}
+
 export interface SignZone {
   pageIndex: number;
   xPct: number;
   yPct: number;
   widthPct: number;
   heightPct: number;
+  signType?: SignType;
 }
+
+const getLastName = (displayName: string) => {
+  const trimmed = displayName.trim();
+  if (!trimmed) return "";
+
+  // If email fallback, extract part after dot or username
+  if (trimmed.includes("@")) {
+    const userPart = trimmed.split("@")[0];
+    const dotParts = userPart.split(".");
+    if (dotParts.length > 1) {
+      const last = dotParts[dotParts.length - 1];
+      return last.charAt(0).toUpperCase() + last.slice(1);
+    }
+    return userPart.charAt(0).toUpperCase() + userPart.slice(1);
+  }
+
+  const parts = trimmed.split(/\s+/);
+  if (parts.length > 1) {
+    return parts[parts.length - 1];
+  }
+  return parts[0];
+};
+
+const getSignerText = (
+  displayName: string,
+  signType: SignType,
+  t: (key: string, options?: any) => string,
+) => {
+  const baseName = displayName || t("sign_zone.default_signer", "Signataire");
+  const lastName = getLastName(baseName);
+
+  switch (signType) {
+    case SignType.NoStamp:
+      return "";
+    case SignType.Initials: {
+      const parts = baseName.trim().split(/\s+/);
+      return parts
+        .map((p) => (p[0] ? `${p[0].toUpperCase()}.` : ""))
+        .join(" ");
+    }
+    case SignType.Mister:
+      return t("sign_zone.title_mister", {
+        name: lastName,
+        defaultValue: `M. ${lastName}`,
+      });
+    case SignType.Missus:
+      return t("sign_zone.title_missus", {
+        name: lastName,
+        defaultValue: `Mme ${lastName}`,
+      });
+    case SignType.Doctor:
+      return t("sign_zone.title_doctor", {
+        name: lastName,
+        defaultValue: `Dr ${lastName}`,
+      });
+    case SignType.FullName:
+    default:
+      return baseName;
+  }
+};
 
 const RESIZE_HANDLE_SIZE = 24;
 
@@ -22,15 +93,17 @@ const resizeHandleStyle: React.CSSProperties = {
   background: "#000091",
   border: "2px solid #ffffff",
   cursor: "nwse-resize",
-  borderRadius: "50%",
+  borderRadius: "25%",
   boxShadow: "0 1px 4px rgba(0,0,0,0.4)",
   zIndex: 2,
 };
 
-const MIN_WIDTH_PCT = 12;
+const MIN_WIDTH_PCT = 15;
+const MAX_WIDTH_PCT = 60;
 const MIN_HEIGHT_PCT = 6;
-const DEFAULT_WIDTH_PCT = 28;
-const DEFAULT_HEIGHT_PCT = 10;
+const MAX_HEIGHT_PCT = 30;
+const DEFAULT_WIDTH_PCT = 25;
+const DEFAULT_HEIGHT_PCT = 9;
 
 export interface SignZoneOverlayManagerProps {
   isSignMode: boolean;
@@ -50,6 +123,66 @@ export const SignZoneOverlayManager = ({
   onZoneChange,
 }: SignZoneOverlayManagerProps) => {
   const { t } = useTranslation();
+
+  const signTypeOptions: FilterOption[] = useMemo(
+    () => [
+      {
+        value: String(SignType.FullName),
+        label: t("sign_zone.type.full_name", "Nom complet"),
+        render: () => (
+          <div className="explorer__filters__item">
+            {t("sign_zone.type.full_name", "Nom complet")}
+          </div>
+        ),
+      },
+      {
+        value: String(SignType.Initials),
+        label: t("sign_zone.type.initials", "Initiales"),
+        render: () => (
+          <div className="explorer__filters__item">
+            {t("sign_zone.type.initials", "Initiales")}
+          </div>
+        ),
+      },
+      {
+        value: String(SignType.Mister),
+        label: t("sign_zone.type.mister", "Monsieur"),
+        render: () => (
+          <div className="explorer__filters__item">
+            {t("sign_zone.type.mister", "Monsieur")}
+          </div>
+        ),
+      },
+      {
+        value: String(SignType.Missus),
+        label: t("sign_zone.type.missus", "Madame"),
+        render: () => (
+          <div className="explorer__filters__item">
+            {t("sign_zone.type.missus", "Madame")}
+          </div>
+        ),
+      },
+      {
+        value: String(SignType.Doctor),
+        label: t("sign_zone.type.doctor", "Docteur"),
+        render: () => (
+          <div className="explorer__filters__item">
+            {t("sign_zone.type.doctor", "Docteur")}
+          </div>
+        ),
+      },
+      {
+        value: String(SignType.NoStamp),
+        label: t("sign_zone.type.no_stamp", "Signature électronique seule"),
+        render: () => (
+          <div className="explorer__filters__item">
+            {t("sign_zone.type.no_stamp", "Signature électronique seule")}
+          </div>
+        ),
+      },
+    ],
+    [t],
+  );
   const [pages, setPages] = useState<HTMLElement[]>([]);
   const [currentZone, setCurrentZone] = useState<SignZone | null>(
     fixedZone || null,
@@ -137,8 +270,10 @@ export const SignZoneOverlayManager = ({
     const clickXPct = ((e.clientX - rect.left) / rect.width) * 100;
     const clickYPct = ((e.clientY - rect.top) / rect.height) * 100;
 
-    const w = currentZone ? currentZone.widthPct : DEFAULT_WIDTH_PCT;
-    const h = currentZone ? currentZone.heightPct : DEFAULT_HEIGHT_PCT;
+    const rawW = currentZone ? currentZone.widthPct : DEFAULT_WIDTH_PCT;
+    const rawH = currentZone ? currentZone.heightPct : DEFAULT_HEIGHT_PCT;
+    const w = Math.max(MIN_WIDTH_PCT, Math.min(MAX_WIDTH_PCT, rawW));
+    const h = Math.max(MIN_HEIGHT_PCT, Math.min(MAX_HEIGHT_PCT, rawH));
 
     const xPct = Math.max(0, Math.min(clickXPct - w / 2, 100 - w));
     const yPct = Math.max(0, Math.min(clickYPct - h / 2, 100 - h));
@@ -149,6 +284,7 @@ export const SignZoneOverlayManager = ({
       yPct: Math.round(yPct * 100) / 100,
       widthPct: w,
       heightPct: h,
+      signType: currentZone?.signType ?? SignType.FullName,
     });
   };
 
@@ -229,8 +365,8 @@ export const SignZoneOverlayManager = ({
             : null,
         );
       } else if (type === "resize") {
-        const maxW = 100 - startZone.xPct;
-        const maxH = 100 - startZone.yPct;
+        const maxW = Math.min(MAX_WIDTH_PCT, 100 - startZone.xPct);
+        const maxH = Math.min(MAX_HEIGHT_PCT, 100 - startZone.yPct);
         const newW = Math.max(
           MIN_WIDTH_PCT,
           Math.min(maxW, startZone.widthPct + deltaXPct),
@@ -301,11 +437,7 @@ export const SignZoneOverlayManager = ({
       month: "2-digit",
       year: "numeric",
     });
-    const timePart = now.toLocaleTimeString(currentLang, {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-    return `${datePart} ${timePart}`;
+    return `${datePart}`;
   }, [i18n.language]);
 
   if (!isSignMode || pages.length === 0) {
@@ -334,77 +466,147 @@ export const SignZoneOverlayManager = ({
               handlePageClick(e, index, pageEl)
             }
           >
-            {currentZone && currentZone.pageIndex === index && (
-              <div
-                onMouseDown={(e) => handleZoneMouseDown(e, pageEl)}
-                onClick={(e) => e.stopPropagation()}
-                style={{
-                  position: "absolute",
-                  left: `${currentZone.xPct}%`,
-                  top: `${currentZone.yPct}%`,
-                  width: `${currentZone.widthPct}%`,
-                  height: `${currentZone.heightPct}%`,
-                  border: "1.5px solid rgba(0, 0, 145, 0.75)",
-                  backgroundColor: "rgba(0, 0, 145, 0.04)",
-                  cursor: isInteractive ? "grab" : "default",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  borderRadius: "4px",
-                  userSelect: "none",
-                  boxSizing: "border-box",
-                  padding: "4px 8px",
-                  pointerEvents: "auto",
-                }}
-              >
-                {/* Transparent rubber stamp: just name and date */}
+            {currentZone && currentZone.pageIndex === index && (() => {
+              const pageWidth = pageEl.clientWidth || 800;
+              const pageHeight = pageEl.clientHeight || 1130;
+              const zonePixelW = (currentZone.widthPct / 100) * pageWidth;
+              const zonePixelH = (currentZone.heightPct / 100) * pageHeight;
+              const scale = Math.max(
+                0.4,
+                Math.min(2.3, Math.min(zonePixelW / 215, zonePixelH / 107)),
+              );
+              const handleSize = Math.max(16, Math.min(32, Math.round(RESIZE_HANDLE_SIZE * scale)));
+
+              return (
                 <div
+                  onMouseDown={(e) => handleZoneMouseDown(e, pageEl)}
+                  onClick={(e) => e.stopPropagation()}
                   style={{
+                    position: "absolute",
+                    left: `${currentZone.xPct}%`,
+                    top: `${currentZone.yPct}%`,
+                    width: `${currentZone.widthPct}%`,
+                    height: `${currentZone.heightPct}%`,
+                    border: "1.5px solid rgba(0, 0, 145, 0.75)",
+                    backgroundColor: "rgba(0, 0, 145, 0.04)",
+                    cursor: isInteractive ? "grab" : "default",
                     display: "flex",
                     flexDirection: "column",
                     justifyContent: "center",
                     alignItems: "center",
-                    height: "100%",
-                    width: "100%",
-                    textAlign: "center",
-                    color: "#000091",
+                    borderRadius: "1px",
+                    userSelect: "none",
+                    boxSizing: "border-box",
+                    padding: "4px 8px",
+                    paddingTop: `${Math.round(34 * scale)}px`,
+                    pointerEvents: "auto",
                   }}
                 >
+                  {/* Transparent rubber stamp: just name and date */}
                   <div
                     style={{
-                      fontSize: "0.85rem",
-                      fontWeight: "bold",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      height: "100%",
                       width: "100%",
+                      textAlign: "center",
+                      color: "#000091",
                     }}
                   >
-                    {signerDisplayName || t("sign_zone.default_signer", "Signataire")}
+                    {currentZone.signType === SignType.NoStamp ? (
+                      <div
+                        style={{
+                          fontSize: `${scale}rem`,
+                          fontStyle: "italic",
+                          opacity: 0.6,
+                        }}
+                      >
+                        {t("sign_zone.no_stamp", "Signature électronique seule")}
+                      </div>
+                    ) : (
+                      <>
+                        <div
+                          style={{
+                            fontSize: `${scale}rem`,
+                            fontWeight: "bold",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            width: "100%",
+                          }}
+                        >
+                          {getSignerText(
+                            signerDisplayName || "",
+                            currentZone.signType ?? SignType.FullName,
+                            t,
+                          )}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: `${scale}rem`,
+                            opacity: 0.8,
+                            marginTop: `${Math.round(1.5 * scale)}px`,
+                          }}
+                        >
+                          {formattedDate}
+                        </div>
+                      </>
+                    )}
                   </div>
-                  <div
-                    style={{
-                      fontSize: "0.68rem",
-                      opacity: 0.8,
-                      marginTop: "2px",
-                    }}
-                  >
-                    {formattedDate}
-                  </div>
-                </div>
 
-                {/* Resize handle (bottom-right corner) only in interactive mode */}
-                {isInteractive && (
+                  {/* Dropdown spanning full width at the top of the zone */}
                   <div
-                    style={resizeHandleStyle}
-                    onMouseDown={(e) => handleResizeMouseDown(e, pageEl)}
+                    className="sign-zone__dropdown-container"
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: `${100 / scale}%`,
+                      zIndex: 10,
+                      transform: `scale(${scale})`,
+                      transformOrigin: "top left",
+                      boxSizing: "border-box",
+                    }}
+                    onMouseDown={(e) => e.stopPropagation()}
                     onClick={(e) => e.stopPropagation()}
-                    title={t("sign_zone.resize", "Redimensionner la zone")}
-                  />
-                )}
-              </div>
-            )}
+                  >
+                    <Filter
+                      label={t("sign_zone.type.label", "Type")}
+                      options={signTypeOptions}
+                      selectedKey={String(currentZone.signType ?? SignType.FullName)}
+                      onSelectionChange={(key) => {
+                        if (key !== null && key !== undefined) {
+                          setCurrentZone((prev) =>
+                            prev
+                              ? { ...prev, signType: Number(key) as SignType }
+                              : null,
+                          );
+                        }
+                      }}
+                      showReset={false}
+                    />
+                  </div>
+
+                  {/* Resize handle (bottom-right corner) only in interactive mode */}
+                  {isInteractive && (
+                    <div
+                      style={{
+                        ...resizeHandleStyle,
+                        width: handleSize,
+                        height: handleSize,
+                        bottom: -handleSize / 2,
+                        right: -handleSize / 2,
+                      }}
+                      onMouseDown={(e) => handleResizeMouseDown(e, pageEl)}
+                      onClick={(e) => e.stopPropagation()}
+                      title={t("sign_zone.resize", "Redimensionner la zone")}
+                    />
+                  )}
+                </div>
+              );
+            })()}
           </div>,
           pageEl,
         ),

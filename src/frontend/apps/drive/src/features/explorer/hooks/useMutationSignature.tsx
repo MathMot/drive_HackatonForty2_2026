@@ -21,8 +21,11 @@ export const useMutationRequestSign = () => {
         method: "POST",
         body: JSON.stringify({ signers, suffix, is_self_sign: false }),
       });
+      
+      
       return response.json();
     },
+    
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["items"] });
       queryClient.invalidateQueries({ queryKey: ["item", variables.itemId] });

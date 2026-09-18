@@ -6,6 +6,12 @@ import os
 import re
 import sys
 import tempfile
+from datetime import datetime, timedelta, timezone
+
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives import serialization
+from cryptography.x509.oid import NameOID
 from io import BytesIO
 from pathlib import Path
 from typing import BinaryIO
@@ -77,7 +83,49 @@ def build_timestamper() -> FallbackTimeStamper:
     return FallbackTimeStamper(
         tuple(HTTPTimeStamper(url, timeout=TSA_TIMEOUT) for url in TSA_URLS)
     )
+def generate_x509_certificate(
+    private_key_pem: str,
+    organization_name: str,
+    name: str,
+    validity_days: int = 365,
+) -> str:
+    private_key_pem = private_key_pem.replace("\\n", "\n")
 
+    private_key = serialization.load_pem_private_key(
+        private_key_pem.encode("utf-8"),
+        password=None,
+    )
+
+    subject = issuer = x509.Name([
+        x509.NameAttribute(
+            NameOID.ORGANIZATION_NAME,
+            organization_name,
+        ),
+        x509.NameAttribute(
+            NameOID.COMMON_NAME,
+            name,
+        ),
+    ])
+
+    now = datetime.now(timezone.utc)
+
+    certificate = (
+        x509.CertificateBuilder()
+        .subject_name(subject)
+        .issuer_name(issuer)
+        .public_key(private_key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(now)
+        .not_valid_after(now + timedelta(days=validity_days))
+        .sign(
+            private_key=private_key,
+            algorithm=hashes.SHA256(),
+        )
+    )
+
+    return certificate.public_bytes(
+        serialization.Encoding.PEM
+    ).decode("utf-8")
 
 def _all_field_names(reader: PdfFileReader) -> set[str]:
     """Collect field names, including non-signature AcroForm fields."""
@@ -249,12 +297,18 @@ def _sign_pdf_file(
 ) -> bytes:
     """Adapt the file-based CLI to the bytes-based signing API."""
     print("TEST ENV VAR")
+    private_key = None
     with open("./private_key.pem", "w") as f:
-        f.write(os.getenv("private_key").replace("\\n", "\n"))
+        private_key = os.getenv("private_key").replace("\\n", "\n")
+        f.write(private_key)
         f.close()
-
+    certificate = generate_x509_certificate(
+    private_key_pem=private_key,
+    organization_name="DINUM",
+    name=field_name,
+)
     with open("./certificate.pem", "w") as f:
-        f.write(os.getenv("private_certificate").replace("\\n", "\n"))
+        f.write(certificate)
         f.close()
 
     return  _sign_pdf_bytes(

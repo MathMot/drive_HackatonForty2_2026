@@ -350,3 +350,47 @@
     border: 1px solid #ef9a9a;
   }
 }
+
+.sign-zone__dropdown-container {
+  width: 100%;
+
+  .c__filter {
+    width: 100%;
+    display: block;
+  }
+
+  .c__filter__button {
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 12px;
+    height: 30px;
+    border-top-left-radius: 1px;
+    border-top-right-radius: 1px;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    border: none;
+    border-bottom: 1px solid rgba(0, 0, 145, 0.15);
+    background-color: rgba(255, 255, 255, 0.95);
+
+    &:hover {
+      background-color: #ffffff;
+    }
+  }
+
+  .c__filter__label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+    font-weight: 500;
+  }
+}
+
+.c__dropdown-menu[data-trigger="Select"] {
+  min-width: var(--trigger-width);
+  max-width: max(320px, var(--trigger-width));
+  box-sizing: border-box;
+}
