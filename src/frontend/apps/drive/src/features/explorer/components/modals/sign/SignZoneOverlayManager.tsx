@@ -44,6 +44,7 @@ export interface SignZone {
   widthPct: number;
   heightPct: number;
   signType?: SignType;
+  imageUrl?: string;
 }
 
 const getLastName = (displayName: string) => {
@@ -312,13 +313,18 @@ export const SignZoneOverlayManager = ({
     const xPct = Math.max(0, Math.min(clickXPct - w / 2, 100 - w));
     const yPct = Math.max(0, Math.min(clickYPct - h / 2, 100 - h));
 
+    const chosenSignType = currentZone?.signType ?? SignType.FullName;
     setCurrentZone({
       pageIndex,
       xPct: Math.round(xPct * 100) / 100,
       yPct: Math.round(yPct * 100) / 100,
       widthPct: w,
       heightPct: h,
-      signType: currentZone?.signType ?? SignType.FullName,
+      signType: chosenSignType,
+      imageUrl:
+        chosenSignType === SignType.CustomSignature
+          ? currentZone?.imageUrl || CUSTOM_SIGNATURE_SRC
+          : undefined,
     });
   };
 
@@ -576,7 +582,7 @@ export const SignZoneOverlayManager = ({
                       >
                         {/* Custom signature: loads image / SVG from a src link */}
                         <img
-                          src={CUSTOM_SIGNATURE_SRC}
+                          src={currentZone.imageUrl || CUSTOM_SIGNATURE_SRC}
                           alt={t("sign_zone.type.custom", "Signature personnalisée")}
                           style={{
                             maxWidth: "100%",
@@ -650,9 +656,17 @@ export const SignZoneOverlayManager = ({
                       selectedKey={String(currentZone.signType ?? SignType.FullName)}
                       onSelectionChange={(key) => {
                         if (key !== null && key !== undefined) {
+                          const selectedType = Number(key) as SignType;
                           setCurrentZone((prev) =>
                             prev
-                              ? { ...prev, signType: Number(key) as SignType }
+                              ? {
+                                  ...prev,
+                                  signType: selectedType,
+                                  imageUrl:
+                                    selectedType === SignType.CustomSignature
+                                      ? prev.imageUrl || CUSTOM_SIGNATURE_SRC
+                                      : undefined,
+                                }
                               : null,
                           );
                         }

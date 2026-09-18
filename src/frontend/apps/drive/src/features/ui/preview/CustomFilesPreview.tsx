@@ -18,6 +18,8 @@ import { useAuth } from "@/features/auth/Auth";
 import { AnonymousCTA } from "../components/anonymous-cta/AnonymousCTA";
 import { MyFilesCTA } from "../components/my-files-cta/MyFilesCTA";
 import {
+  CUSTOM_SIGNATURE_SRC,
+  SignType,
   SignZone,
   SignZoneOverlayManager,
 } from "@/features/explorer/components/modals/sign/SignZoneOverlayManager";
@@ -203,9 +205,15 @@ const CustomFilesPreviewRightHeader = ({
     if (!signZone) return;
     setIsSubmitting(true);
     try {
+      const zonePayload = {
+        ...signZone,
+        ...(signZone.signType === SignType.CustomSignature && !signZone.imageUrl
+          ? { imageUrl: CUSTOM_SIGNATURE_SRC }
+          : {}),
+      };
       await selfSign({
         itemId: currentItem.id,
-        zone: signZone,
+        zone: zonePayload,
         suffix: t("sign_modal.sign_file_suffix", "signé"),
       });
       if ((currentItem as any).parentId) {
@@ -229,9 +237,15 @@ const CustomFilesPreviewRightHeader = ({
     if (!signZone) return;
     setIsSubmitting(true);
     try {
+      const zonePayload = {
+        ...signZone,
+        ...(signZone.signType === SignType.CustomSignature && !signZone.imageUrl
+          ? { imageUrl: CUSTOM_SIGNATURE_SRC }
+          : {}),
+      };
       await executeSign({
         itemId: currentItem.id,
-        zone: signZone,
+        zone: zonePayload,
       });
       router.push("/explorer/items/shared-with-me");
     } catch (err) {

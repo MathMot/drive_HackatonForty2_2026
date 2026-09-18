@@ -1,9 +1,60 @@
 """Utilities for stamping and drawing on PDF documents."""
 
+import base64
+import functools
 import io
+import logging
+import os
 from datetime import datetime
 from pypdf import PdfReader, PdfWriter
+from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
+import requests
+from PIL import Image
+
+logger = logging.getLogger(__name__)
+
+DEFAULT_CUSTOM_SIGNATURE_SRC = (
+    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQdJikztC8D_D_8TvYCYTN2jmsYWZaE7WkooIV7UXwbng&s=10"
+)
+
+
+@functools.lru_cache(maxsize=32)
+def _fetch_image_bytes(url: str) -> bytes | None:
+    try:
+        resp = requests.get(url, timeout=5)
+        if resp.status_code == 200:
+            return resp.content
+    except Exception as e:
+        logger.warning("Failed to fetch signature image from %s: %s", url, e)
+    return None
+
+
+def _load_signature_image(source: str) -> Image.Image | None:
+    """Load a PIL image from a URL, data URI, or local file path."""
+    if not source:
+        return None
+    try:
+        raw_bytes = None
+        if source.startswith("data:image/"):
+            if "," in source:
+                base64_data = source.split(",", 1)[1]
+                raw_bytes = base64.b64decode(base64_data)
+        elif source.startswith("http://") or source.startswith("https://"):
+            raw_bytes = _fetch_image_bytes(source)
+        elif os.path.exists(source):
+            with open(source, "rb") as f:
+                raw_bytes = f.read()
+
+        if raw_bytes:
+            img = Image.open(io.BytesIO(raw_bytes))
+            if img.mode not in ("RGB", "RGBA"):
+                img = img.convert("RGBA")
+            return img
+    except Exception as e:
+        logger.warning("Failed to load signature image: %s", e)
+    return None
+
 
 
 def get_display_name(user) -> str:
@@ -168,11 +219,21 @@ def stamp_doctor(c, x_pt, y_pt, width_pt, height_pt, display_name, date_str):
     _render_stamp_box(c, x_pt, y_pt, width_pt, height_pt, text, date_str)
 
 
-def stamp_custom_signature(c, x_pt, y_pt, width_pt, height_pt, display_name, date_str):
+def stamp_custom_signature(
+    c,
+    x_pt: float,
+    y_pt: float,
+    width_pt: float,
+    height_pt: float,
+    display_name: str,
+    date_str: str,
+    image_url: str | None = None,
+    **kwargs,
+):
     """SignType 6: Custom signature (image / svg placeholder or stamp)."""
     # 1. Background & Border
     c.saveState()
-    c.setFillAlpha(0.04)
+    c.setFillAlpha(0.00)
     c.setStrokeAlpha(0.25)
     c.setFillColorRGB(0, 0, 0)
     c.setStrokeColorRGB(0, 0, 0)
@@ -180,11 +241,46 @@ def stamp_custom_signature(c, x_pt, y_pt, width_pt, height_pt, display_name, dat
     c.rect(x_pt, y_pt, width_pt, height_pt, fill=1, stroke=1)
     c.restoreState()
 
-    # 2. Text / Date
+    # 2. Signature image
+    effective_url = image_url or DEFAULT_CUSTOM_SIGNATURE_SRC
+    font_size_date = max(6.0, min(10.0, height_pt * 0.18))
+    pil_img = _load_signature_image(effective_url)
+
+    if pil_img:
+        try:
+            orig_w, orig_h = pil_img.size
+            if orig_w > 0 and orig_h > 0:
+                date_margin = 4.0
+                date_h = font_size_date + 2.0
+                y_bottom_img = y_pt + date_margin + date_h
+                y_top_img = y_pt + height_pt - 4.0
+                avail_w = max(10.0, width_pt - 8.0)
+                avail_h = max(10.0, y_top_img - y_bottom_img)
+
+                scale = min(avail_w / orig_w, avail_h / orig_h)
+                draw_w = orig_w * scale
+                draw_h = orig_h * scale
+                draw_x = x_pt + (width_pt - draw_w) / 2.0
+                draw_y = y_bottom_img + (avail_h - draw_h) / 2.0
+
+                c.saveState()
+                img_reader = ImageReader(pil_img)
+                c.drawImage(
+                    img_reader,
+                    draw_x,
+                    draw_y,
+                    width=draw_w,
+                    height=draw_h,
+                    mask="auto",
+                )
+                c.restoreState()
+        except Exception as e:
+            logger.warning("Failed to draw signature image on canvas: %s", e)
+
+    # 3. Text / Date
     c.saveState()
     c.setFillAlpha(1.0)
     c.setFillColorRGB(0, 0, 0)
-    font_size_date = max(6.0, min(10.0, height_pt * 0.18))
     cx = x_pt + (width_pt / 2.0)
     c.setFont(PDF_STAMP_FONT_REGULAR, font_size_date)
     c.drawCentredString(cx, y_pt + 4, date_str)
@@ -240,7 +336,24 @@ def stamp_pdf(pdf_bytes: bytes, zone: dict, user=None) -> bytes:
             c = canvas.Canvas(overlay_io, pagesize=(page_w, page_h))
 
             # Dispatch to local sign mode handler
-            handler(c, x_pt, y_pt, width_pt, height_pt, display_name, date_str)
+            if sign_type == 6:
+                image_url = (
+                    zone.get("imageUrl")
+                    or zone.get("image")
+                    or DEFAULT_CUSTOM_SIGNATURE_SRC
+                )
+                handler(
+                    c,
+                    x_pt,
+                    y_pt,
+                    width_pt,
+                    height_pt,
+                    display_name,
+                    date_str,
+                    image_url=image_url,
+                )
+            else:
+                handler(c, x_pt, y_pt, width_pt, height_pt, display_name, date_str)
 
             c.save()
 
