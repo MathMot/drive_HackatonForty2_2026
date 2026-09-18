@@ -48,6 +48,21 @@ def get_last_name(display_name: str) -> str:
     return parts[0]
 
 
+# ==============================================================================
+# DEVELOPER FONT CONFIGURATION FOR REAL PDF STAMP
+# ==============================================================================
+# Standard PDF Type 1 fonts matching clean administration / web typography:
+# Option 1: Helvetica (Active - clean sans-serif default)
+# PDF_STAMP_FONT_BOLD = "Helvetica-Bold"
+# PDF_STAMP_FONT_REGULAR = "Helvetica"
+
+# Option 2: Times (Uncomment below to use serif typography)
+PDF_STAMP_FONT_BOLD = "Times-Bold"
+PDF_STAMP_FONT_REGULAR = "Times-Roman"
+
+# ==============================================================================
+
+
 def _render_stamp_box(
     c: canvas.Canvas,
     x_pt: float,
@@ -67,7 +82,7 @@ def _render_stamp_box(
     """
     # 1. Background & Border
     c.saveState()
-    c.setFillAlpha(0.00)
+    c.setFillAlpha(0.04)
     c.setStrokeAlpha(0.25)
     c.setFillColorRGB(0, 0, 0)
     c.setStrokeColorRGB(0, 0, 0)
@@ -84,7 +99,7 @@ def _render_stamp_box(
     font_size_name = max(8.0, min(14.0, height_pt * 0.22, width_pt * 0.08))
     while (
         font_size_name > 6.0
-        and c.stringWidth(line1_text, "Helvetica-Bold", font_size_name)
+        and c.stringWidth(line1_text, PDF_STAMP_FONT_BOLD, font_size_name)
         > (width_pt - 8)
     ):
         font_size_name -= 0.5
@@ -92,7 +107,7 @@ def _render_stamp_box(
     font_size_date = max(6.0, font_size_name * 0.8)
     while (
         font_size_date > 5.0
-        and c.stringWidth(line2_text, "Helvetica", font_size_date)
+        and c.stringWidth(line2_text, PDF_STAMP_FONT_REGULAR, font_size_date)
         > (width_pt - 8)
     ):
         font_size_date -= 0.5
@@ -103,10 +118,10 @@ def _render_stamp_box(
     line1_y = cy + (font_size_name * 0.2)
     line2_y = cy - (font_size_name * 1.1)
 
-    c.setFont("Helvetica-Bold", font_size_name)
+    c.setFont(PDF_STAMP_FONT_BOLD, font_size_name)
     c.drawCentredString(cx, line1_y, line1_text)
 
-    c.setFont("Helvetica", font_size_date)
+    c.setFont(PDF_STAMP_FONT_REGULAR, font_size_date)
     c.drawCentredString(cx, line2_y, line2_text)
     c.restoreState()
 
@@ -153,6 +168,29 @@ def stamp_doctor(c, x_pt, y_pt, width_pt, height_pt, display_name, date_str):
     _render_stamp_box(c, x_pt, y_pt, width_pt, height_pt, text, date_str)
 
 
+def stamp_custom_signature(c, x_pt, y_pt, width_pt, height_pt, display_name, date_str):
+    """SignType 6: Custom signature (image / svg placeholder or stamp)."""
+    # 1. Background & Border
+    c.saveState()
+    c.setFillAlpha(0.04)
+    c.setStrokeAlpha(0.25)
+    c.setFillColorRGB(0, 0, 0)
+    c.setStrokeColorRGB(0, 0, 0)
+    c.setLineWidth(1.0)
+    c.rect(x_pt, y_pt, width_pt, height_pt, fill=1, stroke=1)
+    c.restoreState()
+
+    # 2. Text / Date
+    c.saveState()
+    c.setFillAlpha(1.0)
+    c.setFillColorRGB(0, 0, 0)
+    font_size_date = max(6.0, min(10.0, height_pt * 0.18))
+    cx = x_pt + (width_pt / 2.0)
+    c.setFont(PDF_STAMP_FONT_REGULAR, font_size_date)
+    c.drawCentredString(cx, y_pt + 4, date_str)
+    c.restoreState()
+
+
 SIGN_MODE_HANDLERS = {
     0: stamp_no_stamp,
     1: stamp_full_name,
@@ -160,6 +198,7 @@ SIGN_MODE_HANDLERS = {
     3: stamp_mister,
     4: stamp_missus,
     5: stamp_doctor,
+    6: stamp_custom_signature,
 }
 
 

@@ -746,7 +746,21 @@
         "future_title": "Signature zone",
         "future_desc": "Recipients will sign at this location",
         "default_signer": "Signer",
-        "resize": "Resize zone"
+        "resize": "Resize zone",
+        "no_stamp": "Only electronic signature",
+        "title_mister": "Mr. {{name}}",
+        "title_missus": "Ms. {{name}}",
+        "title_doctor": "Dr. {{name}}",
+        "type": {
+          "label": "Type",
+          "custom": "Custom signature",
+          "full_name": "Full name",
+          "initials": "Initials",
+          "mister": "Mister",
+          "missus": "Madam",
+          "doctor": "Doctor",
+          "no_stamp": "Only electronic signature"
+        }
       }
     }
   },
@@ -1497,7 +1511,21 @@
         "future_title": "Zone de signature",
         "future_desc": "Les destinataires signeront à cet emplacement",
         "default_signer": "Signataire",
-        "resize": "Redimensionner la zone"
+        "resize": "Redimensionner la zone",
+        "no_stamp": "Signature électronique seule",
+        "title_mister": "M. {{name}}",
+        "title_missus": "Mme {{name}}",
+        "title_doctor": "Dr {{name}}",
+        "type": {
+          "label": "Type",
+          "custom": "Signature personnalisée",
+          "full_name": "Nom complet",
+          "initials": "Initiales",
+          "mister": "Monsieur",
+          "missus": "Madame",
+          "doctor": "Docteur",
+          "no_stamp": "Signature électronique seule"
+        }
       }
     }
   },
@@ -2247,7 +2275,21 @@
         "future_title": "Handtekeningzone",
         "future_desc": "Ontvangers ondertekenen op deze locatie",
         "default_signer": "Ondertekenaar",
-        "resize": "Zone vergroten/verkleinen"
+        "resize": "Zone vergroten/verkleinen",
+        "no_stamp": "Alleen elektronische handtekening",
+        "title_mister": "Dhr. {{name}}",
+        "title_missus": "Mevr. {{name}}",
+        "title_doctor": "Dr. {{name}}",
+        "type": {
+          "label": "Type",
+          "custom": "Aangepaste handtekening",
+          "full_name": "Volledige naam",
+          "initials": "Initialen",
+          "mister": "De heer",
+          "missus": "Mevrouw",
+          "doctor": "Dokter",
+          "no_stamp": "Alleen elektronische handtekening"
+        }
       }
     }
   }
