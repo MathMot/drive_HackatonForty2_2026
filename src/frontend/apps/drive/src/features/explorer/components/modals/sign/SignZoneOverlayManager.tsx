@@ -24,7 +24,8 @@ export const SIGN_BOX_FONT = "'Roboto Flex Variable', 'Roboto Flex', Roboto, san
  * Can be a remote URL, local asset path (e.g. '/signature.svg'), or data URI.
  */
 export const CUSTOM_SIGNATURE_SRC =
-  "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQdJikztC8D_D_8TvYCYTN2jmsYWZaE7WkooIV7UXwbng&s=10";
+  //"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQdJikztC8D_D_8TvYCYTN2jmsYWZaE7WkooIV7UXwbng&s=10";
+  "https://i.ibb.co/0jPR07zh/Todd-Strasser-signature.png";
 
 // Store coordinates as percentages so they scale when the PDF zooms
 export enum SignType {
