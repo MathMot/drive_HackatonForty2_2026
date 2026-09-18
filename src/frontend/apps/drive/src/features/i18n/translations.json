@@ -753,6 +753,7 @@
         "title_doctor": "Dr. {{name}}",
         "type": {
           "label": "Type",
+          "custom": "Custom signature",
           "full_name": "Full name",
           "initials": "Initials",
           "mister": "Mister",
@@ -1517,6 +1518,7 @@
         "title_doctor": "Dr {{name}}",
         "type": {
           "label": "Type",
+          "custom": "Signature personnalisée",
           "full_name": "Nom complet",
           "initials": "Initiales",
           "mister": "Monsieur",
@@ -2280,6 +2282,7 @@
         "title_doctor": "Dr. {{name}}",
         "type": {
           "label": "Type",
+          "custom": "Aangepaste handtekening",
           "full_name": "Volledige naam",
           "initials": "Initialen",
           "mister": "De heer",

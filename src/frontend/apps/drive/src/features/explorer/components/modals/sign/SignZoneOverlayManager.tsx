@@ -3,14 +3,38 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
+/**
+ * =============================================================================
+ * DEVELOPER FONT CONFIGURATION FOR SIGN BOX
+ * =============================================================================
+ * Fonts provided by @gouvfr-lasuite/ui-components:
+ * - Option 1: 'Marianne' (official French administration typography)
+ * - Option 2: 'Roboto Flex' (flexible, modern sans-serif typography)
+ *
+ * To toggle between them, comment/uncomment the desired SIGN_BOX_FONT line below:
+ */
+// Option 1: Marianne (default @gouvfr-lasuite/ui-components font)
+export const SIGN_BOX_FONT = "'Marianne', sans-serif";
+
+// Option 2: Roboto Flex (uncomment to activate, and comment Option 1 above)
+// export const SIGN_BOX_FONT = "'Roboto Flex Variable', 'Roboto Flex', Roboto, sans-serif";
+
+/**
+ * Link to the custom signature image or SVG.
+ * Can be a remote URL, local asset path (e.g. '/signature.svg'), or data URI.
+ */
+export const CUSTOM_SIGNATURE_SRC =
+  "https://upload.wikimedia.org/wikipedia/commons/f/fa/Signature_sample.svg";
+
 // Store coordinates as percentages so they scale when the PDF zooms
 export enum SignType {
-  NoStamp,
-  FullName,
-  Initials,
-  Mister,
-  Missus,
-  Doctor,
+  NoStamp = 0,
+  FullName = 1,
+  Initials = 2,
+  Mister = 3,
+  Missus = 4,
+  Doctor = 5,
+  CustomSignature = 6,
 }
 
 export interface SignZone {
@@ -54,6 +78,7 @@ const getSignerText = (
 
   switch (signType) {
     case SignType.NoStamp:
+    case SignType.CustomSignature:
       return "";
     case SignType.Initials: {
       const parts = baseName.trim().split(/\s+/);
@@ -126,6 +151,15 @@ export const SignZoneOverlayManager = ({
 
   const signTypeOptions: FilterOption[] = useMemo(
     () => [
+      {
+        value: String(SignType.CustomSignature),
+        label: t("sign_zone.type.custom", "Signature personnalisée"),
+        render: () => (
+          <div className="explorer__filters__item">
+            {t("sign_zone.type.custom", "Signature personnalisée")}
+          </div>
+        ),
+      },
       {
         value: String(SignType.FullName),
         label: t("sign_zone.type.full_name", "Nom complet"),
@@ -502,7 +536,7 @@ export const SignZoneOverlayManager = ({
                     pointerEvents: "auto",
                   }}
                 >
-                  {/* Transparent rubber stamp: just name and date */}
+                  {/* Transparent rubber stamp: name/date or custom signature image */}
                   <div
                     style={{
                       display: "flex",
@@ -513,6 +547,7 @@ export const SignZoneOverlayManager = ({
                       width: "100%",
                       textAlign: "center",
                       color: "#000091",
+                      fontFamily: SIGN_BOX_FONT,
                     }}
                   >
                     {currentZone.signType === SignType.NoStamp ? (
@@ -524,6 +559,43 @@ export const SignZoneOverlayManager = ({
                         }}
                       >
                         {t("sign_zone.no_stamp", "Signature électronique seule")}
+                      </div>
+                    ) : currentZone.signType === SignType.CustomSignature ? (
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          justifyContent: "center",
+                          alignItems: "center",
+                          width: "100%",
+                          height: "100%",
+                          boxSizing: "border-box",
+                          padding: "2px 4px",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {/* Custom signature: loads image / SVG from a src link */}
+                        <img
+                          src={CUSTOM_SIGNATURE_SRC}
+                          alt={t("sign_zone.type.custom", "Signature personnalisée")}
+                          style={{
+                            maxWidth: "100%",
+                            maxHeight: "75%",
+                            objectFit: "contain",
+                            userSelect: "none",
+                            pointerEvents: "none",
+                          }}
+                        />
+                        <div
+                          style={{
+                            fontSize: `${0.75 * scale}rem`,
+                            opacity: 0.8,
+                            marginTop: `${Math.round(2 * scale)}px`,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {formattedDate}
+                        </div>
                       </div>
                     ) : (
                       <>
