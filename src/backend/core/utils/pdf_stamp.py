@@ -53,21 +53,13 @@ def get_last_name(display_name: str) -> str:
 # ==============================================================================
 # Standard PDF Type 1 fonts matching clean administration / web typography:
 # Option 1: Helvetica (Active - clean sans-serif default)
-PDF_STAMP_FONT_BOLD = "Helvetica-Bold"
-PDF_STAMP_FONT_REGULAR = "Helvetica"
+# PDF_STAMP_FONT_BOLD = "Helvetica-Bold"
+# PDF_STAMP_FONT_REGULAR = "Helvetica"
 
 # Option 2: Times (Uncomment below to use serif typography)
-# PDF_STAMP_FONT_BOLD = "Times-Bold"
-# PDF_STAMP_FONT_REGULAR = "Times-Roman"
+PDF_STAMP_FONT_BOLD = "Times-Bold"
+PDF_STAMP_FONT_REGULAR = "Times-Roman"
 
-# Option 3: Custom TTF Font from @gouvfr-lasuite/ui-components (e.g. Marianne / Roboto)
-# To use a true .ttf file:
-# from reportlab.pdfbase import pdfmetrics
-# from reportlab.pdfbase.ttfonts import TTFont
-# pdfmetrics.registerFont(TTFont("Marianne", "/path/to/Marianne-Regular.ttf"))
-# pdfmetrics.registerFont(TTFont("Marianne-Bold", "/path/to/Marianne-Bold.ttf"))
-# PDF_STAMP_FONT_BOLD = "Marianne-Bold"
-# PDF_STAMP_FONT_REGULAR = "Marianne"
 # ==============================================================================
 
 

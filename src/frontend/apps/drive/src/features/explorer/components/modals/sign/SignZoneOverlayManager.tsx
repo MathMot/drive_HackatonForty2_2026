@@ -14,17 +14,17 @@ import { useTranslation } from "react-i18next";
  * To toggle between them, comment/uncomment the desired SIGN_BOX_FONT line below:
  */
 // Option 1: Marianne (default @gouvfr-lasuite/ui-components font)
-export const SIGN_BOX_FONT = "'Marianne', sans-serif";
+// export const SIGN_BOX_FONT = "'Marianne', sans-serif";
 
 // Option 2: Roboto Flex (uncomment to activate, and comment Option 1 above)
-// export const SIGN_BOX_FONT = "'Roboto Flex Variable', 'Roboto Flex', Roboto, sans-serif";
+export const SIGN_BOX_FONT = "'Roboto Flex Variable', 'Roboto Flex', Roboto, sans-serif";
 
 /**
  * Link to the custom signature image or SVG.
  * Can be a remote URL, local asset path (e.g. '/signature.svg'), or data URI.
  */
 export const CUSTOM_SIGNATURE_SRC =
-  "https://upload.wikimedia.org/wikipedia/commons/f/fa/Signature_sample.svg";
+  "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQdJikztC8D_D_8TvYCYTN2jmsYWZaE7WkooIV7UXwbng&s=10";
 
 // Store coordinates as percentages so they scale when the PDF zooms
 export enum SignType {
