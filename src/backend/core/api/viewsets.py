@@ -72,6 +72,7 @@ from core.services.search_indexers import (
 from core.storage.cache import invalidate_storage_used_cache
 from core.tasks.item import duplicate_file,duplicate_file_sync_pdf, process_item_purge, rename_file
 from core.utils.analytics import posthog_capture
+from core.utils.pdf_stamp import stamp_pdf
 from wopi.conversion import exceptions as conversion_exceptions
 from wopi.conversion.services import prepare_conversion
 from wopi.services import access as access_service
@@ -2076,23 +2077,66 @@ class ItemViewSet(
         return new_item
 
 
+    def generate_pdf_if_not_signed(self,owner : models.User, user : models.User,file : models.Item):
+
+        #if the document has the Signatory flag, if it's signeable
+        if models.Signatory.objects.filter(file = file).exists():
+            return file
+        
+        #Duplicate the current file by a sync way, and renaming it to name_signed.pdf
+        duplicated = self.duplicate_sync(owner, file.filename.split(".pdf")[0] + "_signed"+".pdf")
+        #Gets the item from the database to ensure that it's properly duplicated and getting its new path
+        item = models.Item.objects.get(id = duplicated.id)
+        sign = models.Signatory(file_hash = "NoHash", file = item, user = user, eIDAS = "", eIDAS_lvl_1 = 1, eIDAS_lvl_2 = 1, date_signed = None, is_signed = False)
+        sign.save()
+        return item
+
+
     @drf.decorators.action(detail=True, methods=["post"], url_path="request-sign")
     def request_sign(self, request, *args, **kwargs):
+
         item = self.get_object()
         user = request.user
         signers = request.data.get("signers", [])
 
         for mail in signers:
-            found_user = None
             try:
                 found_user = models.User.objects.get(email=mail)
-            except Exception as e: # not found
+            except models.User.DoesNotExist:
                 continue
-            sign = models.Signatory(file_hash = "NoHashtp", file = item, user = found_user, eIDAS = "", eIDAS_lvl_1 = 1, eIDAS_lvl_2 = 1, date_signed = None, is_signed = False)
-            sign.save()
-        
+
+            item = self.generate_pdf_if_not_signed(user,found_user, item)
+
+            if not models.Signatory.objects.filter(
+                file=item,
+                user=found_user,
+            ).exists():
+                sign = models.Signatory(
+                    file_hash="NoHashtp",
+                    file=item,
+                    user=found_user,
+                    eIDAS="",
+                    eIDAS_lvl_1=1,
+                    eIDAS_lvl_2=1,
+                    date_signed=None,
+                    is_signed=False,
+                )
+                sign.save()
+
+            if not models.ItemAccess.objects.filter(item = item, user = found_user).exists():
+                share = models.ItemAccess(
+                    item=item,
+                    user=found_user,
+                    role="reader",
+                )
+                share.save()
+
         serializer = self.get_serializer(item)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK,
+        )
 
 
     def can_sign(self,user : models.User,file : models.Item):
@@ -2110,15 +2154,19 @@ class ItemViewSet(
 
         return True
 
-    def try_sign_pdf(self, user : models.User,file : models.Item):
+    def try_sign_pdf(self, user : models.User,file : models.Item, request):
         if not self.can_sign(user,file):
             return False
 
         pdf_bytes = None
         returned_bytes = None
+
+        zone = request.data.get("zone", {})
+        stamped_bytes = None
         with default_storage.open(file.file_key, "rb") as f:
             pdf_bytes = f.read()
-            returned_bytes =  _sign_pdf_file(pdf_bytes,"name" + timezone.now().__str__())
+            stamped_bytes = stamp_pdf(pdf_bytes, zone, user=request.user)
+            returned_bytes =  _sign_pdf_file(stamped_bytes,user.full_name)
             f.close()
         try:
             default_storage.connection.meta.client.put_object(
@@ -2153,17 +2201,11 @@ class ItemViewSet(
         if not is_pdf:                                                      
             return False                                                                                                                      
         # Check if the file is a signed document, if not, duplicate it 
-        if not models.Signatory.objects.filter(file = item).exists():
-            #Duplicate the current file by a sync way, and renaming it to name_signed.pdf
-            duplicated = self.duplicate_sync(request.user, item.filename.split(".pdf")[0] + "_signed"+".pdf")
 
-            #Gets the item from the database to ensure that it's properly duplicated and getting its new path
-            item = models.Item.objects.get(id = duplicated.id)
-            sign = models.Signatory(file_hash = "NoHash", file = item, user = user, eIDAS = "", eIDAS_lvl_1 = 1, eIDAS_lvl_2 = 1, date_signed = None, is_signed = False)
-            sign.save()
+        item = self.generate_pdf_if_not_signed(user,user,item)
 
         #Try to sign it
-        if self.try_sign_pdf(user,item):
+        if self.try_sign_pdf(user,item, request):
             
             serializer = serializers.SelfSignSerializer(data=request.data)                                                                    
             serializer.is_valid(raise_exception=True)                                                                                         
