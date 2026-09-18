@@ -132,6 +132,8 @@ export abstract class Driver {
   ): Promise<PaginatedChildrenResult>;
 
   abstract searchItems(filters?: ItemFilters): Promise<Item[]>;
+
+  abstract getItemSignatures(id: string): Promise<Item>;
   // Accesses
 
   abstract getRecentItems(

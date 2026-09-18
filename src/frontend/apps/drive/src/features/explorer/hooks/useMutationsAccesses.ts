@@ -4,6 +4,8 @@ import { fetchAPI } from "@/features/api/fetchApi";
 import { APIError } from "@/features/api/APIError";
 import { useOnSuccessAccessOrInvitationMutation } from "./useRefreshItems";
 
+
+
 // ============================================================================
 // ACCESS & INVITATION MUTATIONS
 // ============================================================================
@@ -162,3 +164,30 @@ export const useMutationRequestSign = () => {
     },
   });
 };
+
+export const useMutationExecuteSign = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      itemId,
+      zone,
+    }: {
+      itemId: string;
+      zone?: any;
+    }) => {
+      const response = await fetchAPI(
+        `items/${itemId}/execute-sign/`,
+        {
+          method: "POST",
+          body: JSON.stringify({ zone }),
+        },
+      );
+      return response.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["items"] });
+      queryClient.invalidateQueries({ queryKey: ["item", variables.itemId] });
+    },
+  });
+};
+

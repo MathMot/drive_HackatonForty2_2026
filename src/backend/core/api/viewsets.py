@@ -9,7 +9,7 @@ import uuid
 from io import BytesIO
 from urllib.parse import quote, unquote, urlparse
 from django.core.files.storage import default_storage
-
+from ..authentication.padest import _sign_pdf_file
 
 from django.conf import settings
 from django.contrib.postgres.search import TrigramSimilarity
@@ -2026,7 +2026,6 @@ class ItemViewSet(
         item is.
         The user who duplicates becomes the creator of the duplicate
         """
-
         item_to_duplicate = self.get_object()
 
         # The duplicator becomes the creator of a new sized file: gate it like an
@@ -2154,6 +2153,92 @@ class ItemViewSet(
         )
         return Response(response_serializer.data, status=status.HTTP_200_OK)
 
+    def can_sign(self,user : models.User,file : models.Item):
+        #Can't have access to the file, aka is not owner or reader (by real owner sharing)
+        if not models.ItemAccess.objects.filter(user=user,item=file).exists():
+            return False
+        #Checks if the user is in the signatories list
+        try:
+            signatory = models.Signatory.objects.get(user=user,file=file)
+            
+            if signatory.is_signed:
+                return False
+        except Exception as e:
+            return False
+
+        return True
+
+    def try_sign_pdf(self, user : models.User,file : models.Item):
+        if not self.can_sign(user,file):
+            return False
+
+        pdf_bytes = None
+        returned_bytes = None
+        with default_storage.open(file.file_key, "rb") as f:
+            pdf_bytes = f.read()
+            returned_bytes =  _sign_pdf_file(pdf_bytes,"name" + timezone.now().__str__())
+            f.close()
+        try:
+            default_storage.connection.meta.client.put_object(
+            Bucket=default_storage.bucket_name,
+            Key=file.file_key,
+            Body=returned_bytes,
+            ContentType="application/pdf",)
+
+            signatory =  models.Signatory.objects.get(file = file, user = user)
+            signatory.is_signed = True
+            signatory.save()
+        except Exception as e:
+            pass
+
+
+    @action(detail=True, methods=["post"], url_path="self-sign")
+    def self_sign(self, request, *args, **kwargs):
+        """                                                                 
+        Reception and processing of self-signing requests.                  
+        Endpoint: POST /api/v1.0/items/<id>/self-sign/                      
+        """                                                                 
+        # 1. Fetch item and verify permissions                              
+        item = self.get_object() 
+        user = models.User.objects.get(email=request.user) 
+
+        #Checks if the file itself is a pdf
+        is_pdf = (                                                          
+            item.mimetype == "application/pdf"                              
+            or (item.filename and item.filename.lower().endswith(".pdf"))   
+            or (item.title and item.title.lower().endswith(".pdf"))         
+        )                                                                   
+        if not is_pdf:                                                      
+            return False                                                                                                                      
+        # Check if the file is a signed document, if not, duplicate it 
+        if not models.Signatory.objects.filter(file = item).exists():
+            #Duplicate the current file by a sync way, and renaming it to name_signed.pdf
+            duplicated = self.duplicate_sync(request.user, item.filename.split(".pdf")[0] + "_signed"+".pdf")
+
+            #Gets the item from the database to ensure that it's properly duplicated and getting its new path
+            item = models.Item.objects.get(id = duplicated.id)
+            sign = models.Signatory(file_hash = "NoHash", file = item, user = user, eIDAS = "", eIDAS_lvl_1 = 1, eIDAS_lvl_2 = 1, date_signed = None, is_signed = False)
+            sign.save()
+
+        #Try to sign it
+        if self.try_sign_pdf(user,item):
+            
+            serializer = serializers.SelfSignSerializer(data=request.data)                                                                    
+            serializer.is_valid(raise_exception=True)                                                                                         
+            validated_data = serializer.validated_data
+            response_serializer = serializers.ItemSerializer(
+                item, context=self.get_serializer_context()
+            )
+            return Response(response_serializer.data, status=status.HTTP_200_OK)
+        else:
+            #Couldn't sign because the user already signed
+            serializer = serializers.SelfSignSerializer(data=request.data)                                                                    
+            serializer.is_valid(raise_exception=True)                                                                                         
+            validated_data = serializer.validated_data
+            response_serializer = serializers.ItemSerializer(
+                item, context=self.get_serializer_context()
+            )
+            return Response(response_serializer.data, status=status.HTTP_200_OK)
 
 # Declare the schema statically because `get_serializer_class` depends on
 # `self.item`, which reads `self.kwargs["resource_id"]` — unavailable during
@@ -2565,7 +2650,35 @@ class InvitationViewset(
             },
             item=item,
         )
+        
+class ShowSignaturesView(drf.views.APIView):
+    """API ViewSet for showing PDF signatures."""
 
+    #permission_classes = [AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pdf_id:str):
+        """
+        GET /api/v1.0/signatures/
+        Returns list of signature records.
+        """
+        
+        file = models.Item.objects.get(id=pdf_id)
+        signatories = models.Signatory.objects.filter(file=file).order_by("-date_signed")
+
+        data = []
+
+        for signatory in signatories:
+            data.append({
+                "prenom": signatory.user.short_name,
+                "nom": signatory.user.full_name,
+                "email": signatory.user.email,
+                "is_signed": signatory.is_signed,
+                "signature_date": signatory.date_signed,
+                "eIDAS_lvl_1": True,
+                "eIDAS_lvl_2": True,
+            })
+        return drf.response.Response(data)
 
 class ReconciliationConfirmView(drf.views.APIView):
     """API endpoint to confirm user reconciliation emails.
