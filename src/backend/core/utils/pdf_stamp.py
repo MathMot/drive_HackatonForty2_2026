@@ -82,7 +82,7 @@ def _render_stamp_box(
     """
     # 1. Background & Border
     c.saveState()
-    c.setFillAlpha(0.04)
+    c.setFillAlpha(0.00)
     c.setStrokeAlpha(0.25)
     c.setFillColorRGB(0, 0, 0)
     c.setStrokeColorRGB(0, 0, 0)
