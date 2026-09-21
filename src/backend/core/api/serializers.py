@@ -1001,3 +1001,4 @@ class SelfSignSerializer(serializers.Serializer):
     zone = SignZoneSerializer(required=True)
     suffix = serializers.CharField(max_length=50, required=False, default="signé")
     is_self_sign = serializers.BooleanField(required=False, default=True)
+

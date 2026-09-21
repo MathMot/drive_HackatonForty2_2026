@@ -2552,7 +2552,48 @@ class InvitationViewset(
             },
             item=item,
         )
+        
+class ShowSignaturesView(drf.views.APIView):
+    """API ViewSet for showing PDF signatures."""
 
+    #permission_classes = [AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pdf_id:str):
+        """
+        GET /api/v1.0/signatures/
+        Returns list of signature records.
+        """
+        
+        # 
+        dict_settings = [
+            {
+                "prenom": "Jean",
+                "nom": "Dupont",
+                "is_signed": True,
+                "signature_date": "2024-03-15",
+                "eIDAS_lvl_1": True,
+                "eIDAS_lvl_2": True
+            },
+            {
+                "prenom": "Marie",
+                "nom": "Martin",
+                "is_signed": False,
+                "signature_date": None,
+                "eIDAS_lvl_1": None,
+                "eIDAS_lvl_2": None
+            },
+            {
+                "prenom": "Pierre",
+                "nom": "Bernard",
+                "is_signed": True,
+                "signature_date": "2024-02-28",
+                "eIDAS_lvl_1": True,
+                "eIDAS_lvl_2": False
+            }
+        ]
+
+        return drf.response.Response(dict_settings)
 
 class ReconciliationConfirmView(drf.views.APIView):
     """API endpoint to confirm user reconciliation emails.
